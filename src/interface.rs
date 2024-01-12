@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser, Debug)]
 #[command(name = env!("CARGO_PKG_NAME"))]
@@ -20,7 +20,7 @@ pub enum Commands {
 
 #[derive(Args, Debug)]
 pub struct UnpackArguments {
-    /// Text/JSON file describing the texture atlas to be unpacked
+    /// Text file describing the texture atlas to be unpacked
     #[arg(required = true)]
     pub source: String,
     /// Directory where the extracted images will go
@@ -29,7 +29,7 @@ pub struct UnpackArguments {
     /// Overwrite existing files
     #[arg(short = 'o')]
     pub overwrite: bool,
-    /// Quiet mode (nothing will be printed)
+    /// Quiet mode
     #[arg(short = 'q')]
     pub quiet: bool
 }
@@ -45,12 +45,15 @@ pub struct QueryArguments {
     /// Use a fixed size for the texture pages
     #[arg(short = 'p')]
     pub page_size: Option<String>,
-    /// Generate texture with power-of-two dimensions
-    #[arg(long = "po2")]
-    pub power_of_two: bool,
     /// Don't merge duplicate images in the output
     #[arg(long = "no-dedup")]
     pub include_duplicates: bool
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+pub enum OutputFormat {
+    Json,
+    Text
 }
 
 #[derive(Args, Debug, Clone)]
@@ -70,13 +73,16 @@ pub struct PackArguments {
     /// Use a fixed size for the texture pages
     #[arg(short = 'p')]
     pub page_size: Option<String>,
+    /// Description format
+    #[arg(short = 'f')]
+    pub format: Option<OutputFormat>,
     /// Quiet mode (nothing will be printed)
     #[arg(short = 'q')]
     pub quiet: bool,
     /// Pack rectangles by area instead of distance
     #[arg(long = "area")]
     pub pack_by_area: bool,
-    /// Sort images by the short side instead of long
+    /// Sort images by short side instead of long
     #[arg(long = "short")]
     pub short_side_sort: bool,
     /// Allow 90-degree rotation for more efficient packing

@@ -78,11 +78,15 @@ pub fn print_packing_report(packer: &TexturePacker, log: &mut Option<impl Write>
 
 fn generate_output_files(args: &interface::PackArguments, packer: TexturePacker, log: &mut Option<impl Write>) -> utils::GeneralResult<()> {
     let destination = outputs::prepare_output_directory(&args.output)?;
-    let description_file = Path::new(&destination).join(format!("{}.json", &packer.label));
+    let extension = match args.format {
+        Some(interface::OutputFormat::Text) => "txt",
+        _ => "json"
+    };
+    let description_file = Path::new(&destination).join(format!("{}.{}", &packer.label, extension));
     if let Some(msg) = outputs::check_overwrite(&description_file, args.overwrite)? {
         info_message(log, msg);
     }
-    if let Some(description) = atlas::generate_description(&packer) {
+    if let Some(description) = atlas::generate_description(args, &packer) {
         let mut description_handle = File::create(&description_file)?;
         description_handle.write_all(description.as_bytes())?;
     } else {

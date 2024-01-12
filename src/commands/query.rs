@@ -82,10 +82,11 @@ fn generate_mock_packing_arguments(query_args: &interface::QueryArguments) -> Ve
         spacing: query_args.spacing.clone(),
         page_size: query_args.page_size.clone(),
         quiet: false,
+        format: None,
         pack_by_area: false,
         short_side_sort: false,
         rotate: false,
-        power_of_two: query_args.power_of_two,
+        power_of_two: false,
         include_duplicates: query_args.include_duplicates,
     };
 

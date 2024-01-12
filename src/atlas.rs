@@ -2,10 +2,15 @@ use std::borrow::Borrow;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{packing::TexturePacker, sources::SourceTexture};
+use crate::{
+    formatting::{AtlasFormatter, JsonFormatter, TextFormatter},
+    interface::{self, OutputFormat},
+    packing::TexturePacker,
+    sources::SourceTexture,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AtlasTexture {
+pub struct AtlasTexture {
     pub name: String,
     pub x: u32,
     pub y: u32,
@@ -16,21 +21,21 @@ struct AtlasTexture {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AtlasTextureExtra {
+pub struct AtlasTextureExtra {
     pub original_width: u32,
     pub original_height: u32,
     pub rotated: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AtlasPage {
+pub struct AtlasPage {
     pub texture: String,
     pub width: u32,
     pub height: u32,
     pub regions: Vec<AtlasTexture>,
 }
 
-pub fn generate_description(packer: &TexturePacker) -> Option<String> {
+pub fn generate_description(args: &interface::PackArguments, packer: &TexturePacker) -> Option<String> {
     let mut r: Vec<AtlasPage> = Vec::new();
     for (idx, page) in packer.pages.iter().enumerate() {
         let texture = match packer.pages.len() {
@@ -55,33 +60,27 @@ pub fn generate_description(packer: &TexturePacker) -> Option<String> {
         r.iter_mut().for_each(|x| remove_extra_fields(&mut x.regions))
     }
 
-    match r.len() {
-        1 => serde_json::to_string_pretty(&r[0]),
-        _ => serde_json::to_string_pretty(&r),
-    }
-    .ok()
+    let formatter = create_formatter(&args.format);
+    formatter.format_atlas(&r)
 }
 
 pub fn read_from_description(source: &str) -> Option<Vec<(String, Vec<SourceTexture>)>> {
-    let mut v = Vec::new();
-    //try to parse the string as a single texture page
-    if let Ok(page) = serde_json::from_str::<AtlasPage>(source) {
-        //if it works, add it to the vector
-        let t = page.regions.into_iter().map(SourceTexture::from).collect();
-        v.push((page.texture, t));
-    }
-    //if the first attempt didn't work, try parsing it as a vector of pages
-    else if let Ok(pages) = serde_json::from_str::<Vec<AtlasPage>>(source) {
-        //if it works, add all the pages to the vector
-        for page in pages.into_iter() {
-            let t = page.regions.into_iter().map(SourceTexture::from).collect();
-            v.push((page.texture, t));
+    let formats = [OutputFormat::Json, OutputFormat::Text];
+    for fmt in formats {
+        let formatter = create_formatter(&Some(fmt));
+        let result = formatter.read_atlas(source);
+        if result.is_some() {
+            return result;
         }
-    } else {
-        //nothing worked, give up
-        return None;
     }
-    Some(v)
+    None
+}
+
+fn create_formatter(format: &Option<interface::OutputFormat>) -> Box<dyn AtlasFormatter> {
+    match format {
+        Some(OutputFormat::Text) => Box::new(TextFormatter),
+        _ => Box::new(JsonFormatter)
+    }
 }
 
 impl<T: Borrow<AtlasTexture>> From<T> for SourceTexture {
@@ -106,12 +105,22 @@ impl<T: Borrow<AtlasTexture>> From<T> for SourceTexture {
             name: name_without_slashes.clone(),
             path: std::path::PathBuf::from(&name_without_slashes),
             dimensions: if pd.rotated {
-                Rect { x: 0, y: 0, width: src.height, height: src.width }
+                Rect {
+                    x: 0,
+                    y: 0,
+                    width: src.height,
+                    height: src.width,
+                }
             } else {
-                Rect { x: 0, y: 0, width: src.width, height: src.height }
+                Rect {
+                    x: 0,
+                    y: 0,
+                    width: src.width,
+                    height: src.height,
+                }
             },
             replica_of: None,
-            packing: Some(pd)
+            packing: Some(pd),
         }
     }
 }

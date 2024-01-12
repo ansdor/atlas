@@ -9,6 +9,7 @@ mod images;
 mod interface;
 mod outputs;
 mod packing;
+mod formatting;
 mod rectangle;
 mod sources;
 mod utils;
