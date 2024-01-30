@@ -4,7 +4,9 @@ use image::{GenericImage, GenericImageView};
 
 use crate::{packing::TexturePage, sources::SourceTexture, utils};
 
-pub fn generate_image<P: AsRef<Path>>(page: TexturePage, destination: P) -> utils::GeneralResult<()> {
+pub fn generate_image<P: AsRef<Path>>(
+    page: TexturePage, destination: P,
+) -> utils::GeneralResult<()> {
     let (w, h) = match page.size {
         Some((w, h)) => (w, h),
         None => page.packed_bounds(),
@@ -29,7 +31,12 @@ pub fn unpack_page<P: AsRef<Path>>(
     for e in entries {
         let p = e.packing.clone().unwrap(); //safe call to unwrap
         let view = source_image
-            .view(p.position.x, p.position.y, p.position.width, p.position.height)
+            .view(
+                p.position.x,
+                p.position.y,
+                p.position.width,
+                p.position.height,
+            )
             .to_image();
         let mut canvas = image::RgbaImage::new(p.position.width, p.position.height);
         canvas.copy_from(&view, 0, 0)?;

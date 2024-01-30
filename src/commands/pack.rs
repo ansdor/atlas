@@ -14,13 +14,17 @@ use crate::{atlas, images, interface, outputs, packing, sources, utils};
 
 pub const EXTENSIONS: [&str; 1] = ["png"];
 
-pub fn pack(args: &interface::PackArguments, log: &mut Option<impl Write>) -> utils::GeneralResult<()> {
+pub fn pack(
+    args: &interface::PackArguments, log: &mut Option<impl Write>,
+) -> utils::GeneralResult<()> {
     let packer = pack_textures(args, log)?;
     print_packing_report(&packer, log);
     generate_output_files(args, packer, log)
 }
 
-pub fn pack_textures(args: &interface::PackArguments, log: &mut Option<impl Write>) -> utils::GeneralResult<TexturePacker> {
+pub fn pack_textures(
+    args: &interface::PackArguments, log: &mut Option<impl Write>,
+) -> utils::GeneralResult<TexturePacker> {
     let source_settings = sources::generate_settings(args);
     let packing_settings = packing::generate_settings(args)?;
     let sources = sources::acquire_sources(&args.sources, &EXTENSIONS, &source_settings)?;
@@ -42,7 +46,9 @@ pub fn pack_textures(args: &interface::PackArguments, log: &mut Option<impl Writ
     pack_with_progress_bar(packer, log)
 }
 
-fn pack_with_progress_bar(mut packer: TexturePacker, log: &mut Option<impl Write>) -> utils::GeneralResult<TexturePacker> {
+fn pack_with_progress_bar(
+    mut packer: TexturePacker, log: &mut Option<impl Write>,
+) -> utils::GeneralResult<TexturePacker> {
     let (sources, duplicates) = (packer.count(), packer.duplicates());
     let (send, recv) = mpsc::channel::<u64>();
     let handle = thread::spawn(move || match packer.pack_everything(Some(send)) {
@@ -66,21 +72,29 @@ pub fn print_packing_report(packer: &TexturePacker, log: &mut Option<impl Write>
     let page_size = packer.page_size();
     let page_count = packer.pages.len();
     //report the data
-    info_message(log, format!(
-        "generated {} page{}, size {}x{}.",
-        page_count,
-        if page_count == 1 { "" } else { "s" },
-        page_size.0,
-        page_size.1
-    ));
-    info_message(log, format!("packing efficiency: {:.2}%.", packer.efficiency()).as_str());
+    info_message(
+        log,
+        format!(
+            "generated {} page{}, size {}x{}.",
+            page_count,
+            if page_count == 1 { "" } else { "s" },
+            page_size.0,
+            page_size.1
+        ),
+    );
+    info_message(
+        log,
+        format!("packing efficiency: {:.2}%.", packer.efficiency()).as_str(),
+    );
 }
 
-fn generate_output_files(args: &interface::PackArguments, packer: TexturePacker, log: &mut Option<impl Write>) -> utils::GeneralResult<()> {
+fn generate_output_files(
+    args: &interface::PackArguments, packer: TexturePacker, log: &mut Option<impl Write>,
+) -> utils::GeneralResult<()> {
     let destination = outputs::prepare_output_directory(&args.output)?;
     let extension = match args.format {
         Some(interface::OutputFormat::Text) => "txt",
-        _ => "json"
+        _ => "json",
     };
     let description_file = Path::new(&destination).join(format!("{}.{}", &packer.label, extension));
     if let Some(msg) = outputs::check_overwrite(&description_file, args.overwrite)? {

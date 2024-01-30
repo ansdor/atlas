@@ -15,7 +15,7 @@ pub enum Commands {
     /// Extract textures from a packed texture atlas
     Unpack(UnpackArguments),
     /// Evaluate different packing settings for efficiency
-    Query(QueryArguments)
+    Query(QueryArguments),
 }
 
 #[derive(Args, Debug)]
@@ -31,7 +31,7 @@ pub struct UnpackArguments {
     pub overwrite: bool,
     /// Quiet mode
     #[arg(short = 'q')]
-    pub quiet: bool
+    pub quiet: bool,
 }
 
 #[derive(Args, Debug)]
@@ -47,13 +47,13 @@ pub struct QueryArguments {
     pub page_size: Option<String>,
     /// Don't merge duplicate images in the output
     #[arg(long = "no-dedup")]
-    pub include_duplicates: bool
+    pub include_duplicates: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum OutputFormat {
     Json,
-    Text
+    Text,
 }
 
 #[derive(Args, Debug, Clone)]

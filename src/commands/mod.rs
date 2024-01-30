@@ -1,7 +1,7 @@
 mod pack;
-mod unpack;
 mod query;
+mod unpack;
 
 pub use pack::pack;
-pub use unpack::unpack;
 pub use query::query;
+pub use unpack::unpack;

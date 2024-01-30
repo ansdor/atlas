@@ -65,7 +65,12 @@ impl TexturePacker {
             .iter()
             .map(|x| x.textures.iter().filter(|x| x.replica_of.is_some()).count())
             .sum::<usize>()
-            .saturating_add(self.sources.iter().filter(|x| x.replica_of.is_some()).count())
+            .saturating_add(
+                self.sources
+                    .iter()
+                    .filter(|x| x.replica_of.is_some())
+                    .count(),
+            )
     }
 
     pub fn page_size(&self) -> (u32, u32) {
@@ -77,12 +82,18 @@ impl TexturePacker {
     }
 
     pub fn total_source_area(&self) -> u64 {
-        self.pages.iter().map(|x| {
-            x.textures.iter().filter_map(|x| match x.replica_of {
-                Some(_) => None,
-                None => Some((x.dimensions.width * x.dimensions.height) as u64)
-            }).sum::<u64>()
-        }).sum()
+        self.pages
+            .iter()
+            .map(|x| {
+                x.textures
+                    .iter()
+                    .filter_map(|x| match x.replica_of {
+                        Some(_) => None,
+                        None => Some((x.dimensions.width * x.dimensions.height) as u64),
+                    })
+                    .sum::<u64>()
+            })
+            .sum()
     }
 
     pub fn total_packed_area(&self) -> u64 {
@@ -107,15 +118,15 @@ impl TexturePacker {
     fn adjust_page_names(&mut self) {
         match self.pages.len() {
             1 => self.pages[0].name = String::from(&self.label),
-            _ => {
-                self.pages.iter_mut().enumerate().for_each(|(i, x)| {
-                    x.name = format!("{}-{}", &self.label, i);
-                })
-            }
+            _ => self.pages.iter_mut().enumerate().for_each(|(i, x)| {
+                x.name = format!("{}-{}", &self.label, i);
+            }),
         }
     }
 
-    pub fn pack_everything(&mut self, progress: Option<mpsc::Sender<u64>>) -> utils::GeneralResult<()> {
+    pub fn pack_everything(
+        &mut self, progress: Option<mpsc::Sender<u64>>,
+    ) -> utils::GeneralResult<()> {
         //unbox the sources container
         let sources = mem::take(&mut self.sources);
         let mut replicas = Vec::new();
@@ -127,20 +138,18 @@ impl TexturePacker {
                     //retrieve its dimensions
                     let dimensions = (texture.dimensions.width, texture.dimensions.height);
                     //find the first page where it can be packed
-                    let mut packing = self
-                        .pages
-                        .iter_mut()
-                        .enumerate()
-                        .find_map(|(i, x)| {
-                            x.pack_rectangle(dimensions, &self.settings).map(|p| (i, p))
-                        });
+                    let mut packing = self.pages.iter_mut().enumerate().find_map(|(i, x)| {
+                        x.pack_rectangle(dimensions, &self.settings).map(|p| (i, p))
+                    });
                     //if the texture couldn't be packed in any page
                     if packing.is_none() {
                         //create a new page
                         self.add_page();
                         let last_page = self.pages.len() - 1;
                         //and pack the texture in it
-                        if let Some(p) = self.pages[last_page].pack_rectangle(dimensions, &self.settings) {
+                        if let Some(p) =
+                            self.pages[last_page].pack_rectangle(dimensions, &self.settings)
+                        {
                             packing = Some((last_page, p));
                         }
                     }
@@ -204,10 +213,17 @@ impl TexturePage {
         }
     }
 
-    fn pack_rectangle(&mut self, dimensions: (u32, u32), settings: &PackingSettings) -> Option<PackingData> {
+    fn pack_rectangle(
+        &mut self, dimensions: (u32, u32), settings: &PackingSettings,
+    ) -> Option<PackingData> {
         //create a copy of the rectangle to
         //be packed, and apply spacing to it
-        let mut r = Rect::new(0, 0, dimensions.0 + settings.spacing, dimensions.1 + settings.spacing);
+        let mut r = Rect::new(
+            0,
+            0,
+            dimensions.0 + settings.spacing,
+            dimensions.1 + settings.spacing,
+        );
         //get the bounds of the set of packed rectangles
         let bounds = self.packed_bounds();
         //collect the indices of the free slots that can contain R
@@ -218,7 +234,12 @@ impl TexturePage {
         if settings.rotation {
             //collect the indices of free slots that
             //can contain a rotated version of R
-            let r = Rect::new(0, 0, dimensions.1 + settings.spacing, dimensions.0 + settings.spacing);
+            let r = Rect::new(
+                0,
+                0,
+                dimensions.1 + settings.spacing,
+                dimensions.0 + settings.spacing,
+            );
             let extra: Vec<usize> = (0..self.free_slots.len())
                 .filter(|&x| self.free_slots[x].can_contain(&r) && !candidates.contains(&x))
                 .collect();
@@ -237,11 +258,12 @@ impl TexturePage {
                 //if the page size is dynamic
                 None => {
                     //create a new slot for R
-                    self.free_slots.push(if bounds.0 + r.width >= bounds.1 + r.height {
-                        Rect::new(0, bounds.1, cmp::max(bounds.0, r.width), r.height)
-                    } else {
-                        Rect::new(bounds.0, 0, r.width, cmp::max(bounds.1, r.height))
-                    });
+                    self.free_slots
+                        .push(if bounds.0 + r.width >= bounds.1 + r.height {
+                            Rect::new(0, bounds.1, cmp::max(bounds.0, r.width), r.height)
+                        } else {
+                            Rect::new(bounds.0, 0, r.width, cmp::max(bounds.1, r.height))
+                        });
                     //and add it to the list of candidates
                     candidates.push(self.free_slots.len() - 1);
                 }
@@ -347,7 +369,11 @@ fn read_page_size(arg: &Option<String>) -> GeneralResult<Option<(u32, u32)>> {
             if w < MAX_DIMENSIONS && h < MAX_DIMENSIONS {
                 Ok(Some((w, h)))
             } else {
-                Err(format!("largest supported page size is {}x{}", MAX_DIMENSIONS, MAX_DIMENSIONS).into())
+                Err(format!(
+                    "largest supported page size is {}x{}",
+                    MAX_DIMENSIONS, MAX_DIMENSIONS
+                )
+                .into())
             }
         } else {
             Err(format!("failed to read dimensions from '{}'.", s).into())

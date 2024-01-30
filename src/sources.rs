@@ -93,15 +93,21 @@ pub fn acquire_sources<P: AsRef<Path>>(
         .collect::<Vec<SourceTexture>>();
 
     fn short_side_sort(a: &SourceTexture, b: &SourceTexture) -> cmp::Ordering {
-        cmp::min(b.dimensions.width, b.dimensions.height).cmp(&cmp::min(a.dimensions.width, a.dimensions.height))
+        cmp::min(b.dimensions.width, b.dimensions.height)
+            .cmp(&cmp::min(a.dimensions.width, a.dimensions.height))
     }
     fn long_side_sort(a: &SourceTexture, b: &SourceTexture) -> cmp::Ordering {
-        cmp::max(b.dimensions.width, b.dimensions.height).cmp(&cmp::max(a.dimensions.width, a.dimensions.height))
+        cmp::max(b.dimensions.width, b.dimensions.height)
+            .cmp(&cmp::max(a.dimensions.width, a.dimensions.height))
     }
     //sort the textures according to the settings
     match settings.sorting {
-        SortingMethod::ShortSide => info.sort_by(|a, b| short_side_sort(a, b).then(long_side_sort(a, b))),
-        SortingMethod::LongSide => info.sort_by(|a, b| long_side_sort(a, b).then(short_side_sort(a, b))),
+        SortingMethod::ShortSide => {
+            info.sort_by(|a, b| short_side_sort(a, b).then(long_side_sort(a, b)))
+        }
+        SortingMethod::LongSide => {
+            info.sort_by(|a, b| long_side_sort(a, b).then(short_side_sort(a, b)))
+        }
     }
     solve_name_collisions(&mut info);
     if settings.deduplicate {
@@ -111,7 +117,9 @@ pub fn acquire_sources<P: AsRef<Path>>(
     Ok(info)
 }
 
-fn scan_for_sources<P>(node: P, extensions: &[&str], bucket: &mut Vec<PathBuf>) -> utils::GeneralResult<()>
+fn scan_for_sources<P>(
+    node: P, extensions: &[&str], bucket: &mut Vec<PathBuf>,
+) -> utils::GeneralResult<()>
 where
     P: AsRef<Path>, {
     let node = if node.as_ref().is_absolute() {
@@ -138,14 +146,18 @@ where
     Ok(())
 }
 
-pub fn validate_dimensions(sources: &[SourceTexture], settings: &packing::PackingSettings) -> utils::GeneralResult<()> {
+pub fn validate_dimensions(
+    sources: &[SourceTexture], settings: &packing::PackingSettings,
+) -> utils::GeneralResult<()> {
     let (page_size, spacing) = (settings.page_size.unwrap(), settings.spacing);
     //build a collection of images that don't fit the provided page size
     let misfits: Vec<usize> = sources
         .iter()
         .enumerate()
         .filter_map(|(i, x)| {
-            if x.dimensions.width + spacing > page_size.0 || x.dimensions.height + spacing > page_size.1 {
+            if x.dimensions.width + spacing > page_size.0
+                || x.dimensions.height + spacing > page_size.1
+            {
                 Some(i)
             } else {
                 None
@@ -159,7 +171,13 @@ pub fn validate_dimensions(sources: &[SourceTexture], settings: &packing::Packin
         //otherwise, build an error message to return
         let mut err = String::new();
         err.push_str("the following images can't be packed with the current settings:");
-        err.push_str(format!("\n\tpage size: {}x{}, spacing: {}px", page_size.0, page_size.1, spacing).as_str());
+        err.push_str(
+            format!(
+                "\n\tpage size: {}x{}, spacing: {}px",
+                page_size.0, page_size.1, spacing
+            )
+            .as_str(),
+        );
         misfits.iter().for_each(|n| {
             let s = &sources[*n];
             let (name, w, h) = (&s.name, s.dimensions.width, s.dimensions.height);
@@ -171,7 +189,13 @@ pub fn validate_dimensions(sources: &[SourceTexture], settings: &packing::Packin
             .map(|x| (x.dimensions.width + spacing, x.dimensions.height + spacing))
             .reduce(|req, n| (cmp::max(req.0, n.0), cmp::max(req.1, n.1)))
             .unwrap_or((0, 0));
-        err.push_str(format!("\nminimum required page size for these settings: {}x{}", min.0, min.1).as_str());
+        err.push_str(
+            format!(
+                "\nminimum required page size for these settings: {}x{}",
+                min.0, min.1
+            )
+            .as_str(),
+        );
         err.push_str("\nfailed to pack textures.");
         Err(err.into())
     }
@@ -183,11 +207,22 @@ pub fn report_duplicates(sources: &[SourceTexture]) -> Option<(usize, String)> {
         0 => None,
         _ => {
             let mut b = String::new();
-            b.push_str(format!("found {} duplicate{}:", count, if count > 1 { "s" } else { "" }).as_str());
+            b.push_str(
+                format!(
+                    "found {} duplicate{}:",
+                    count,
+                    if count > 1 { "s" } else { "" }
+                )
+                .as_str(),
+            );
             sources
                 .iter()
                 .filter(|x| x.replica_of.is_some())
-                .for_each(|x| b.push_str(format!("\n\t{} => {}", x.name, x.replica_of.as_ref().unwrap()).as_str()));
+                .for_each(|x| {
+                    b.push_str(
+                        format!("\n\t{} => {}", x.name, x.replica_of.as_ref().unwrap()).as_str(),
+                    )
+                });
             Some((count, b))
         }
     }
@@ -225,7 +260,11 @@ fn solve_name_collisions(sources: &mut [SourceTexture]) {
             collision = true;
             //try to fix the entry's path
             //skip the first, the 'original'
-            entry.1.iter().skip(1).for_each(|x| sources[*x].specialize_name());
+            entry
+                .1
+                .iter()
+                .skip(1)
+                .for_each(|x| sources[*x].specialize_name());
         }
         //if there were no collisions, break the loop
         if !collision {
@@ -268,7 +307,10 @@ fn compare_textures(a: &SourceTexture, b: &SourceTexture) -> utils::GeneralResul
         return Ok(false);
     }
     //step 2: byte lengths
-    let (len_a, len_b) = (std::fs::metadata(&a.path)?.len(), std::fs::metadata(&b.path)?.len());
+    let (len_a, len_b) = (
+        std::fs::metadata(&a.path)?.len(),
+        std::fs::metadata(&b.path)?.len(),
+    );
     if len_a != len_b {
         return Ok(false);
     }
@@ -280,7 +322,10 @@ fn compare_textures(a: &SourceTexture, b: &SourceTexture) -> utils::GeneralResul
         BufReader::new(File::open(&b.path)?),
     );
     loop {
-        let read = (handles.0.read(&mut buffers.0)?, handles.1.read(&mut buffers.1)?);
+        let read = (
+            handles.0.read(&mut buffers.0)?,
+            handles.1.read(&mut buffers.1)?,
+        );
         if read.0 == 0 && read.1 == 0 {
             //EOF was reached and no difference was found, they are duplicates
             return Ok(true);

@@ -1,4 +1,7 @@
-use std::{env, path::{PathBuf, Path}, fs};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use crate::utils;
 
@@ -15,7 +18,7 @@ pub fn prepare_output_directory(out_path: &str) -> utils::GeneralResult<PathBuf>
     //the output files will be created
     let out_dir = match path.parent() {
         Some(d) => d,
-        None => return Err(format!("invalid output path '{}'", path.display()).into())
+        None => return Err(format!("invalid output path '{}'", path.display()).into()),
     };
     //if the path doesn't exist, try to create it
     if !out_dir.exists() {
@@ -26,7 +29,9 @@ pub fn prepare_output_directory(out_path: &str) -> utils::GeneralResult<PathBuf>
     Ok(out_dir)
 }
 
-pub fn check_overwrite<P: AsRef<Path>>(path: P, overwrite: bool) -> utils::GeneralResult<Option<String>> {
+pub fn check_overwrite<P: AsRef<Path>>(
+    path: P, overwrite: bool,
+) -> utils::GeneralResult<Option<String>> {
     let path = path.as_ref();
     match (path.exists(), overwrite) {
         //if the file exists and overwriting is allowed, return Ok with a message

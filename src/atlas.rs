@@ -35,7 +35,9 @@ pub struct AtlasPage {
     pub regions: Vec<AtlasTexture>,
 }
 
-pub fn generate_description(args: &interface::PackArguments, packer: &TexturePacker) -> Option<String> {
+pub fn generate_description(
+    args: &interface::PackArguments, packer: &TexturePacker,
+) -> Option<String> {
     let mut r: Vec<AtlasPage> = Vec::new();
     for (idx, page) in packer.pages.iter().enumerate() {
         let texture = match packer.pages.len() {
@@ -57,7 +59,8 @@ pub fn generate_description(args: &interface::PackArguments, packer: &TexturePac
     //if rotation is disabled in the settings,
     //remove the extra fields from the textures
     if !packer.settings.rotation {
-        r.iter_mut().for_each(|x| remove_extra_fields(&mut x.regions))
+        r.iter_mut()
+            .for_each(|x| remove_extra_fields(&mut x.regions))
     }
 
     let formatter = create_formatter(&args.format);
@@ -79,7 +82,7 @@ pub fn read_from_description(source: &str) -> Option<Vec<(String, Vec<SourceText
 fn create_formatter(format: &Option<interface::OutputFormat>) -> Box<dyn AtlasFormatter> {
     match format {
         Some(OutputFormat::Text) => Box::new(TextFormatter),
-        _ => Box::new(JsonFormatter)
+        _ => Box::new(JsonFormatter),
     }
 }
 
@@ -97,7 +100,9 @@ impl<T: Borrow<AtlasTexture>> From<T> for SourceTexture {
                 height: src.height,
             },
             rotated: match &src.extra {
-                Some(extra) => extra.original_width != src.width || extra.original_height != src.height,
+                Some(extra) => {
+                    extra.original_width != src.width || extra.original_height != src.height
+                }
                 None => false,
             },
         };
@@ -144,4 +149,6 @@ impl<T: Borrow<SourceTexture>> From<T> for AtlasTexture {
     }
 }
 
-fn remove_extra_fields(entries: &mut [AtlasTexture]) { entries.iter_mut().for_each(|x| x.extra = None); }
+fn remove_extra_fields(entries: &mut [AtlasTexture]) {
+    entries.iter_mut().for_each(|x| x.extra = None);
+}

@@ -13,7 +13,14 @@ impl AsRef<Rect> for Rect {
 }
 
 impl Rect {
-    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Rect { Rect { x, y, width, height } }
+    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Rect {
+        Rect {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
 
     pub fn cmp_by_distance<T: AsRef<Rect>>(a: T, b: T) -> Ordering {
         let (a, b) = (a.as_ref(), b.as_ref());
@@ -49,13 +56,17 @@ impl Rect {
                 x: self.x,
                 y: r.y.saturating_add(r.height),
                 width: self.width,
-                height: self.height.saturating_sub(relative_position.1.saturating_add(r.height)),
+                height: self
+                    .height
+                    .saturating_sub(relative_position.1.saturating_add(r.height)),
             });
             //right
             pieces.push(Rect {
                 x: r.x.saturating_add(r.width),
                 y: self.y,
-                width: self.width.saturating_sub(relative_position.0.saturating_add(r.width)),
+                width: self
+                    .width
+                    .saturating_sub(relative_position.0.saturating_add(r.width)),
                 height: self.height,
             });
             //left
@@ -79,15 +90,30 @@ impl Rect {
             || r.y + r.height > self.y.saturating_add(self.height))
     }
 
-    pub fn distance_from_origin(&self) -> f64 { ((self.x.pow(2).saturating_add(self.y.pow(2))) as f64).sqrt() }
+    pub fn distance_from_origin(&self) -> f64 {
+        ((self.x.pow(2).saturating_add(self.y.pow(2))) as f64).sqrt()
+    }
 
     pub fn area(&self) -> u32 { self.width.saturating_mul(self.height) }
 
     pub fn intersection(&self, r: &Rect) -> Rect {
         let x = cmp::max(self.x, r.x);
         let y = cmp::max(self.y, r.y);
-        let width = cmp::min(self.x.saturating_add(self.width), r.x.saturating_add(r.width)).saturating_sub(x);
-        let height = cmp::min(self.y.saturating_add(self.height), r.y.saturating_add(r.height)).saturating_sub(y);
-        Rect { x, y, width, height }
+        let width = cmp::min(
+            self.x.saturating_add(self.width),
+            r.x.saturating_add(r.width),
+        )
+        .saturating_sub(x);
+        let height = cmp::min(
+            self.y.saturating_add(self.height),
+            r.y.saturating_add(r.height),
+        )
+        .saturating_sub(y);
+        Rect {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 }

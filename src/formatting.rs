@@ -1,8 +1,8 @@
-use crate::atlas::{AtlasPage, self};
+use crate::atlas::{self, AtlasPage};
 use crate::sources::SourceTexture;
 
 pub trait AtlasFormatter {
-    fn format_atlas(&self, pages: &Vec<AtlasPage>) -> Option<String>;
+    fn format_atlas(&self, pages: &[AtlasPage]) -> Option<String>;
     fn read_atlas(&self, source: &str) -> Option<Vec<(String, Vec<SourceTexture>)>>;
 }
 
@@ -10,7 +10,7 @@ pub struct JsonFormatter;
 pub struct TextFormatter;
 
 impl AtlasFormatter for JsonFormatter {
-    fn format_atlas(&self, pages: &Vec<AtlasPage>) -> Option<String> {
+    fn format_atlas(&self, pages: &[AtlasPage]) -> Option<String> {
         match pages.len() {
             1 => serde_json::to_string_pretty(&pages[0]),
             _ => serde_json::to_string_pretty(&pages),
@@ -36,18 +36,25 @@ impl AtlasFormatter for JsonFormatter {
 }
 
 impl AtlasFormatter for TextFormatter {
-    fn format_atlas(&self, pages: &Vec<AtlasPage>) -> Option<String> {
+    fn format_atlas(&self, pages: &[AtlasPage]) -> Option<String> {
         let mut buffer = String::new();
         buffer += "# page <name> <width> <height>\n";
         buffer += "# region <name> <x> <y> <width> <height> [<rotated> <original_width> <original_height>]\n";
         for page in pages {
-            buffer += format!("page \"{}\" {} {}\n", page.texture, page.width, page.height).as_str();
+            buffer +=
+                format!("page \"{}\" {} {}\n", page.texture, page.width, page.height).as_str();
             for region in page.regions.iter() {
-                let (name, x, y, w, h) = (&region.name, region.x, region.y, region.width, region.height);
-                let extra = match &region.extra {
-                    Some(x) => Some((x.rotated, x.original_width, x.original_height)),
-                    None => None,
-                };
+                let (name, x, y, w, h) = (
+                    &region.name,
+                    region.x,
+                    region.y,
+                    region.width,
+                    region.height,
+                );
+                let extra = region
+                    .extra
+                    .as_ref()
+                    .map(|x| (x.rotated, x.original_width, x.original_height));
                 let mut line = format!("region \"{}\" {} {} {} {}", name, x, y, w, h);
                 line += match extra {
                     Some((r, ow, oh)) => format!(" {} {} {}\n", if r { 1 } else { 0 }, ow, oh),
@@ -81,7 +88,8 @@ impl AtlasFormatter for TextFormatter {
                         return None;
                     }
 
-                    let mut region_values: Vec<u32> = region_values.into_iter().map(Option::unwrap).collect();
+                    let mut region_values: Vec<u32> =
+                        region_values.into_iter().map(Option::unwrap).collect();
                     let region_extras = if region_values.len() == 7 {
                         let original_height = region_values.pop().unwrap();
                         let original_width = region_values.pop().unwrap();
@@ -89,7 +97,7 @@ impl AtlasFormatter for TextFormatter {
                         Some(atlas::AtlasTextureExtra {
                             original_width,
                             original_height,
-                            rotated
+                            rotated,
                         })
                     } else {
                         None
@@ -106,7 +114,7 @@ impl AtlasFormatter for TextFormatter {
                             y,
                             width,
                             height,
-                            extra: region_extras
+                            extra: region_extras,
                         }
                     };
 
