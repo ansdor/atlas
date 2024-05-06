@@ -85,6 +85,9 @@ pub struct PackArguments {
     /// Sort images by short side instead of long
     #[arg(long = "short")]
     pub short_side_sort: bool,
+    /// Do not sort source images, pack them in the order they were provided
+    #[arg(long = "unsorted")]
+    pub unsorted: bool,
     /// Allow 90-degree rotation for more efficient packing
     #[arg(long = "rotate")]
     pub rotate: bool,

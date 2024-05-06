@@ -2,7 +2,7 @@
 name = "atlas"
 version = "0.1.0"
 description = "simple texture atlas generator"
-authors = ["ansdor <me@ansdor.com"]
+authors = ["ansdor <me@ansdor.com>"]
 edition = "2021"
 
 [dependencies]

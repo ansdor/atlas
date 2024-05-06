@@ -86,7 +86,7 @@ fn describe_settings(args: &interface::PackArguments) -> String {
 fn generate_mock_packing_arguments(
     query_args: &interface::QueryArguments,
 ) -> Vec<interface::PackArguments> {
-    let sorting_options = [false, true];
+    let sorting_options = [Some(false), Some(true)];
     let packing_options = [false, true];
     let rotate_options = [false, true];
     let default_settings = interface::PackArguments {
@@ -99,6 +99,7 @@ fn generate_mock_packing_arguments(
         format: None,
         pack_by_area: false,
         short_side_sort: false,
+        unsorted: false,
         rotate: false,
         power_of_two: false,
         include_duplicates: query_args.include_duplicates,
@@ -109,7 +110,8 @@ fn generate_mock_packing_arguments(
         for pack in packing_options {
             for rotation in rotate_options {
                 r.push(interface::PackArguments {
-                    short_side_sort: sort,
+                    //this is always Some()
+                    short_side_sort: sort.unwrap(),
                     pack_by_area: pack,
                     rotate: rotation,
                     ..default_settings.clone()

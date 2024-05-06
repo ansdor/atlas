@@ -30,7 +30,7 @@ pub struct PackingData {
 }
 
 pub struct SourceSettings {
-    pub sorting: SortingMethod,
+    pub sorting: Option<SortingMethod>,
     pub deduplicate: bool,
 }
 
@@ -54,9 +54,10 @@ impl SourceTexture {
 
 pub fn generate_settings(args: &interface::PackArguments) -> SourceSettings {
     SourceSettings {
-        sorting: match args.short_side_sort {
-            true => SortingMethod::ShortSide,
-            false => SortingMethod::LongSide,
+        sorting: match (args.unsorted, args.short_side_sort) {
+            (true, _) => None,
+            (_, true) => Some(SortingMethod::ShortSide),
+            (_, false) => Some(SortingMethod::LongSide),
         },
         deduplicate: !args.include_duplicates,
     }
@@ -79,8 +80,10 @@ pub fn acquire_sources<P: AsRef<Path>>(
         //recursively look for textures
         scan_for_sources(src, extensions, &mut paths)?;
         //sort and deduplicate
-        paths.sort();
-        paths.dedup();
+        if settings.sorting.is_some() {
+            paths.sort();
+            paths.dedup();
+        }
     }
     //if no textures were found, error
     if paths.is_empty() {
@@ -92,22 +95,32 @@ pub fn acquire_sources<P: AsRef<Path>>(
         .filter_map(|x| read_texture_info(x).ok())
         .collect::<Vec<SourceTexture>>();
 
+    fn alphabetic_sort(a: &SourceTexture, b: &SourceTexture) -> cmp::Ordering {
+        a.name.to_lowercase().cmp(&b.name.to_lowercase())
+    }
+
     fn short_side_sort(a: &SourceTexture, b: &SourceTexture) -> cmp::Ordering {
         cmp::min(b.dimensions.width, b.dimensions.height)
             .cmp(&cmp::min(a.dimensions.width, a.dimensions.height))
     }
+
     fn long_side_sort(a: &SourceTexture, b: &SourceTexture) -> cmp::Ordering {
         cmp::max(b.dimensions.width, b.dimensions.height)
             .cmp(&cmp::max(a.dimensions.width, a.dimensions.height))
     }
     //sort the textures according to the settings
     match settings.sorting {
-        SortingMethod::ShortSide => {
-            info.sort_by(|a, b| short_side_sort(a, b).then(long_side_sort(a, b)))
-        }
-        SortingMethod::LongSide => {
-            info.sort_by(|a, b| long_side_sort(a, b).then(short_side_sort(a, b)))
-        }
+        Some(SortingMethod::ShortSide) => info.sort_by(|a, b| {
+            short_side_sort(a, b)
+                .then(long_side_sort(a, b))
+                .then(alphabetic_sort(a, b))
+        }),
+        Some(SortingMethod::LongSide) => info.sort_by(|a, b| {
+            long_side_sort(a, b)
+                .then(short_side_sort(a, b))
+                .then(alphabetic_sort(a, b))
+        }),
+        _ => { }
     }
     solve_name_collisions(&mut info);
     if settings.deduplicate {
