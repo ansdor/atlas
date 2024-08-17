@@ -324,7 +324,12 @@ impl TexturePage {
         }
         //return the packing data for R
         Some(PackingData {
-            position: r,
+            position: Rect::new(
+                r.x,
+                r.y,
+                r.width - settings.spacing,
+                r.height - settings.spacing,
+            ),
             rotated,
         })
     }
