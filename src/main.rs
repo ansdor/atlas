@@ -32,6 +32,7 @@ fn main() {
         interface::Commands::Pack(args) => commands::pack(&args, &mut log),
         interface::Commands::Unpack(args) => commands::unpack(&args, &mut log),
         interface::Commands::Query(args) => commands::query(&args, &mut log),
+        interface::Commands::Arrange(args) => commands::arrange(&args, &mut log)
     } {
         exit_with_error(&mut log, msg);
     }

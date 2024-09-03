@@ -99,7 +99,6 @@ fn generate_mock_packing_arguments(
         format: None,
         pack_by_area: false,
         short_side_sort: false,
-        unsorted: false,
         rotate: false,
         power_of_two: false,
         include_duplicates: query_args.include_duplicates,

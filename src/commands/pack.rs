@@ -26,8 +26,8 @@ pub fn pack_textures(
     args: &interface::PackArguments, log: &mut Option<impl Write>,
 ) -> utils::GeneralResult<TexturePacker> {
     let source_settings = sources::generate_settings(args);
-    let packing_settings = packing::generate_settings(args)?;
-    let sources = sources::acquire_sources(&args.sources, &EXTENSIONS, &source_settings)?;
+    let packing_settings = packing::generate_packing_settings(args)?;
+    let sources = sources::prepare_sources(&args.sources, &EXTENSIONS, Some(source_settings))?;
     //check if page size is large enough to fit all the images
     if packing_settings.page_size.is_some() {
         sources::validate_dimensions(&sources, &packing_settings)?;
@@ -46,14 +46,20 @@ pub fn pack_textures(
     pack_with_progress_bar(packer, log)
 }
 
-fn pack_with_progress_bar(
+pub fn pack_with_progress_bar(
     mut packer: TexturePacker, log: &mut Option<impl Write>,
 ) -> utils::GeneralResult<TexturePacker> {
     let (sources, duplicates) = (packer.count(), packer.duplicates());
     let (send, recv) = mpsc::channel::<u64>();
-    let handle = thread::spawn(move || match packer.pack_everything(Some(send)) {
-        Ok(_) => Ok(packer),
-        Err(msg) => Err(msg),
+    let handle = thread::spawn(move || {
+        let r = match packer.settings.arrange {
+            Some(_) => packer.arrange_everything(Some(send)),
+            None => packer.pack_everything(Some(send)),
+        };
+        match r {
+            Ok(_) => Ok(packer),
+            Err(msg) => Err(msg),
+        }
     });
     if log.is_some() {
         let bar = ProgressBar::new(sources.saturating_sub(duplicates) as u64);
@@ -88,6 +94,19 @@ pub fn print_packing_report(packer: &TexturePacker, log: &mut Option<impl Write>
     );
 }
 
+pub fn generate_image_files<P: AsRef<Path>>(
+    destination: P, packer: TexturePacker, overwrite: bool, log: &mut Option<impl Write>,
+) -> utils::GeneralResult<()> {
+    for page in packer.pages.into_iter() {
+        let image_path = Path::new(destination.as_ref()).join(format!("{}.png", &page.name));
+        if let Some(msg) = outputs::check_overwrite(&image_path, overwrite)? {
+            info_message(log, msg);
+        }
+        images::generate_image(page, &image_path)?;
+    }
+    Ok(())
+}
+
 fn generate_output_files(
     args: &interface::PackArguments, packer: TexturePacker, log: &mut Option<impl Write>,
 ) -> utils::GeneralResult<()> {
@@ -106,12 +125,5 @@ fn generate_output_files(
     } else {
         return Err("unable to generate description file".into());
     }
-    for page in packer.pages.into_iter() {
-        let image_path = Path::new(&destination).join(format!("{}.png", &page.name));
-        if let Some(msg) = outputs::check_overwrite(&image_path, args.overwrite)? {
-            info_message(log, msg);
-        }
-        images::generate_image(page, &image_path)?;
-    }
-    Ok(())
+    generate_image_files(destination, packer, args.overwrite, log)
 }

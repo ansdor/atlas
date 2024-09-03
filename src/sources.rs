@@ -8,10 +8,16 @@ use std::path::{Path, PathBuf};
 use crate::rectangle::Rect;
 use crate::{interface, packing, utils};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SortingMethod {
     ShortSide,
     LongSide,
+}
+
+#[derive(Clone, Copy)]
+pub struct SourceSettings {
+    pub sorting: SortingMethod,
+    pub deduplicate: bool,
 }
 
 #[derive(Debug)]
@@ -29,9 +35,13 @@ pub struct PackingData {
     pub rotated: bool,
 }
 
-pub struct SourceSettings {
-    pub sorting: Option<SortingMethod>,
-    pub deduplicate: bool,
+impl Default for SourceSettings {
+    fn default() -> Self {
+        SourceSettings {
+            sorting: SortingMethod::LongSide,
+            deduplicate: true
+        }
+    }
 }
 
 impl SourceTexture {
@@ -52,52 +62,12 @@ impl SourceTexture {
     }
 }
 
-pub fn generate_settings(args: &interface::PackArguments) -> SourceSettings {
-    SourceSettings {
-        sorting: match (args.unsorted, args.short_side_sort) {
-            (true, _) => None,
-            (_, true) => Some(SortingMethod::ShortSide),
-            (_, false) => Some(SortingMethod::LongSide),
-        },
-        deduplicate: !args.include_duplicates,
-    }
-}
-
-pub fn acquire_sources<P: AsRef<Path>>(
-    sources: &[P], extensions: &[&str], settings: &SourceSettings,
+pub fn prepare_sources<P: AsRef<Path>>(
+    sources: &[P], extensions: &[&str], settings: Option<SourceSettings>,
 ) -> utils::GeneralResult<Vec<SourceTexture>> {
-    //if there are no sources, nothing to do
-    if sources.is_empty() {
-        return Err("no sources provided.".into());
-    }
-    let mut paths = Vec::new();
-    for src in sources.iter() {
-        let src = src.as_ref();
-        //if a source doesn't exist, return an error
-        if !src.exists() {
-            return Err(format!("source '{}' not found.", src.display()).into());
-        }
-        //recursively look for textures
-        scan_for_sources(src, extensions, &mut paths)?;
-        //sort and deduplicate
-        if settings.sorting.is_some() {
-            paths.sort();
-            paths.dedup();
-        }
-    }
-    //if no textures were found, error
-    if paths.is_empty() {
-        return Err("no textures found.".into());
-    }
-
-    let mut info = paths
-        .into_iter()
-        .filter_map(|x| read_texture_info(x).ok())
-        .collect::<Vec<SourceTexture>>();
-
-    fn alphabetic_sort(a: &SourceTexture, b: &SourceTexture) -> cmp::Ordering {
-        a.name.to_lowercase().cmp(&b.name.to_lowercase())
-    }
+    // if settings were not provided, use the defaults
+    let settings = settings.unwrap_or_default();
+    let mut info = build_source_list(sources, extensions)?;
 
     fn short_side_sort(a: &SourceTexture, b: &SourceTexture) -> cmp::Ordering {
         cmp::min(b.dimensions.width, b.dimensions.height)
@@ -110,17 +80,16 @@ pub fn acquire_sources<P: AsRef<Path>>(
     }
     //sort the textures according to the settings
     match settings.sorting {
-        Some(SortingMethod::ShortSide) => info.sort_by(|a, b| {
+        SortingMethod::ShortSide => info.sort_by(|a, b| {
             short_side_sort(a, b)
                 .then(long_side_sort(a, b))
-                .then(alphabetic_sort(a, b))
+                .then(human_sort::compare(&a.name, &b.name))
         }),
-        Some(SortingMethod::LongSide) => info.sort_by(|a, b| {
+        SortingMethod::LongSide => info.sort_by(|a, b| {
             long_side_sort(a, b)
                 .then(short_side_sort(a, b))
-                .then(alphabetic_sort(a, b))
+                .then(human_sort::compare(&a.name, &b.name))
         }),
-        _ => { }
     }
     solve_name_collisions(&mut info);
     if settings.deduplicate {
@@ -128,6 +97,44 @@ pub fn acquire_sources<P: AsRef<Path>>(
     }
     //return the vector with all the source texture information
     Ok(info)
+}
+
+pub fn generate_settings(args: &interface::PackArguments) -> SourceSettings {
+    SourceSettings {
+        sorting: match args.short_side_sort {
+            true => SortingMethod::ShortSide,
+            false => SortingMethod::LongSide
+        },
+        deduplicate: !args.include_duplicates,
+    }
+}
+
+pub fn build_source_list<P: AsRef<Path>>(
+    sources: &[P], extensions: &[&str]) -> utils::GeneralResult<Vec<SourceTexture>> {
+    //if there are no sources, nothing to do
+    if sources.is_empty() {
+        return Err("No source provided".into());
+    }
+    let mut paths = Vec::new();
+    for src in sources.iter() {
+        let src = src.as_ref();
+        //if a source doesn't exist, return an error
+        if !src.exists() {
+            return Err(format!("source '{}' not found.", src.display()).into());
+        }
+        //recursively scan for textures
+        scan_for_sources(src, extensions, &mut paths)?;
+    }
+    if paths.is_empty() {
+        return Err("no textures found.".into());
+    }
+    //sort and dedup
+    paths.sort();
+    paths.dedup();
+    Ok(paths
+        .into_iter()
+        .filter_map(|x| read_texture_info(x).ok())
+        .collect())
 }
 
 fn scan_for_sources<P>(

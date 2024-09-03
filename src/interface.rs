@@ -16,38 +16,14 @@ pub enum Commands {
     Unpack(UnpackArguments),
     /// Evaluate different packing settings for efficiency
     Query(QueryArguments),
+    /// Generate tiled atlas from a list of images
+    Arrange(ArrangeArguments)
 }
 
-#[derive(Args, Debug)]
-pub struct UnpackArguments {
-    /// Text file describing the texture atlas to be unpacked
-    #[arg(required = true)]
-    pub source: String,
-    /// Directory where the extracted images will go
-    #[arg(required = true)]
-    pub output_directory: String,
-    /// Overwrite existing files
-    #[arg(short = 'o')]
-    pub overwrite: bool,
-    /// Quiet mode
-    #[arg(short = 'q')]
-    pub quiet: bool,
-}
-
-#[derive(Args, Debug)]
-pub struct QueryArguments {
-    /// Files or directories to be used as sources for the query
-    #[arg(required = true)]
-    pub sources: Vec<String>,
-    /// Space between the textures, in pixels
-    #[arg(short = 's')]
-    pub spacing: Option<u32>,
-    /// Use a fixed size for the texture pages
-    #[arg(short = 'p')]
-    pub page_size: Option<String>,
-    /// Don't merge duplicate images in the output
-    #[arg(long = "no-dedup")]
-    pub include_duplicates: bool,
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+pub enum ArrangeDirection {
+    Horizontal,
+    Vertical
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -85,9 +61,6 @@ pub struct PackArguments {
     /// Sort images by short side instead of long
     #[arg(long = "short")]
     pub short_side_sort: bool,
-    /// Do not sort source images, pack them in the order they were provided
-    #[arg(long = "unsorted")]
-    pub unsorted: bool,
     /// Allow 90-degree rotation for more efficient packing
     #[arg(long = "rotate")]
     pub rotate: bool,
@@ -97,4 +70,55 @@ pub struct PackArguments {
     /// Don't merge duplicate images in the output
     #[arg(long = "no-dedup")]
     pub include_duplicates: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct UnpackArguments {
+    /// Text file describing the texture atlas to be unpacked
+    #[arg(required = true)]
+    pub source: String,
+    /// Directory where the extracted images will go
+    #[arg(required = true)]
+    pub output_directory: String,
+    /// Overwrite existing files
+    #[arg(short = 'o')]
+    pub overwrite: bool,
+    /// Quiet mode
+    #[arg(short = 'q')]
+    pub quiet: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct QueryArguments {
+    /// Files or directories to be used as sources for the query
+    #[arg(required = true)]
+    pub sources: Vec<String>,
+    /// Space between the textures, in pixels
+    #[arg(short = 's')]
+    pub spacing: Option<u32>,
+    /// Use a fixed size for the texture pages
+    #[arg(short = 'p')]
+    pub page_size: Option<String>,
+    /// Don't merge duplicate images in the output
+    #[arg(long = "no-dedup")]
+    pub include_duplicates: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct ArrangeArguments {
+    /// The tile arrangement in NxN format, e.g. 4x4
+    #[arg(required = true)]
+    pub layout: String,
+    /// Files or directories to be used as sources
+    #[arg(required = true)]
+    pub sources: Vec<String>,
+    /// Output file to be generated
+    #[arg(required = true)]
+    pub output: String,
+    /// Overwrite existing files
+    #[arg(short = 'o')]
+    pub overwrite: bool,
+    /// Arrange images horizontally or vertically
+    #[arg(short = 'd')]
+    pub direction: Option<ArrangeDirection>
 }

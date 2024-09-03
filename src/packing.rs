@@ -14,6 +14,8 @@ const MAX_SPACING: u32 = 1024;
 pub enum PackingMethod {
     Distance,
     Area,
+    Rows,
+    Columns,
 }
 
 impl fmt::Display for PackingMethod {
@@ -26,8 +28,15 @@ pub struct PackingSettings {
     pub spacing: u32,
     pub rotation: bool,
     pub page_size: Option<(u32, u32)>,
+    pub arrange: Option<ArrangeSettings>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ArrangeSettings {
+    layout: (u32, u32),
+}
+
+#[derive(Debug)]
 pub struct TexturePage {
     pub name: String,
     pub textures: Vec<SourceTexture>,
@@ -35,6 +44,7 @@ pub struct TexturePage {
     free_slots: Vec<Rect>,
 }
 
+#[derive(Debug)]
 pub struct TexturePacker {
     pub label: String,
     pub pages: Vec<TexturePage>,
@@ -124,6 +134,31 @@ impl TexturePacker {
         }
     }
 
+    pub fn arrange_everything(
+        &mut self, progress: Option<mpsc::Sender<u64>>,
+    ) -> utils::GeneralResult<()> {
+        let settings = self.settings.arrange.as_ref().unwrap();
+        let layout = settings.layout;
+        let tile_size = (
+            self.sources.iter().map(|x| x.dimensions.width).max(),
+            self.sources.iter().map(|x| x.dimensions.height).max(),
+        );
+        match tile_size {
+            (Some(tw), Some(th)) => {
+                self.pages.clear();
+                self.sources
+                    .sort_by(|a, b| human_sort::compare(&a.name, &b.name));
+                self.settings.page_size = Some((tw * layout.0, th * layout.1));
+                self.sources.iter_mut().for_each(|x| {
+                    x.dimensions.width = tw;
+                    x.dimensions.height = th;
+                });
+                self.pack_everything(progress)
+            }
+            _ => unreachable!(),
+        }
+    }
+
     pub fn pack_everything(
         &mut self, progress: Option<mpsc::Sender<u64>>,
     ) -> utils::GeneralResult<()> {
@@ -201,7 +236,7 @@ impl TexturePacker {
 }
 
 impl TexturePage {
-    fn new(name: &str, size: Option<(u32, u32)>) -> Self {
+    pub fn new(name: &str, size: Option<(u32, u32)>) -> Self {
         TexturePage {
             name: String::from(name),
             textures: Vec::new(),
@@ -279,11 +314,21 @@ impl TexturePage {
             let (a, b) = (&self.free_slots[*a], &self.free_slots[*b]);
             Rect::cmp_by_area(a, b).then(Rect::cmp_by_distance(a, b))
         };
+        let x_then_y = |a: &usize, b: &usize| {
+            let (a, b) = (&self.free_slots[*a], &self.free_slots[*b]);
+            a.x.cmp(&b.x).then(a.y.cmp(&b.y))
+        };
+        let y_then_x = |a: &usize, b: &usize| {
+            let (a, b) = (&self.free_slots[*a], &self.free_slots[*b]);
+            a.y.cmp(&b.y).then(a.x.cmp(&b.x))
+        };
         //pick the best candidate from the list
         //using the method defined in the settings
         let pick = self.free_slots.remove(match settings.method {
             PackingMethod::Distance => candidates.into_iter().min_by(dist_then_area).unwrap(),
             PackingMethod::Area => candidates.into_iter().min_by(area_then_dist).unwrap(),
+            PackingMethod::Rows => candidates.into_iter().min_by(y_then_x).unwrap(),
+            PackingMethod::Columns => candidates.into_iter().min_by(x_then_y).unwrap(),
         });
         //if the picked rectangle can't contain R,
         //it means R must be rotated to fit.
@@ -352,38 +397,69 @@ impl TexturePage {
     }
 }
 
-pub fn generate_settings(args: &interface::PackArguments) -> GeneralResult<PackingSettings> {
-    match read_page_size(&args.page_size) {
-        Ok(page_size) => Ok(PackingSettings {
-            method: match args.pack_by_area {
-                true => PackingMethod::Area,
-                false => PackingMethod::Distance,
-            },
-            spacing: cmp::min(args.spacing.unwrap_or(0), MAX_SPACING),
-            rotation: args.rotate,
-            page_size,
-        }),
-        Err(msg) => Err(msg),
+pub fn generate_arrange_settings(
+    args: &interface::ArrangeArguments,
+) -> GeneralResult<PackingSettings> {
+    match read_dimensions(&args.layout) {
+        None => Err(format!("failed to read layout from '{}'", args.layout).into()),
+        Some((w, h)) => {
+            use interface::*;
+            Ok(PackingSettings {
+                method: match args.direction {
+                    Some(ArrangeDirection::Vertical) => PackingMethod::Columns,
+                    _ => PackingMethod::Rows,
+                },
+                spacing: 0,
+                rotation: false,
+                page_size: None,
+                arrange: Some(ArrangeSettings {
+                    layout: (w, h),
+                }),
+            })
+        }
     }
 }
 
-fn read_page_size(arg: &Option<String>) -> GeneralResult<Option<(u32, u32)>> {
-    if let Some(s) = arg {
-        let p: Vec<&str> = s.split('x').collect();
-        if let (Ok(w), Ok(h)) = (p[0].parse::<u32>(), p[1].parse::<u32>()) {
-            if w < MAX_DIMENSIONS && h < MAX_DIMENSIONS {
-                Ok(Some((w, h)))
-            } else {
-                Err(format!(
-                    "largest supported page size is {}x{}",
-                    MAX_DIMENSIONS, MAX_DIMENSIONS
-                )
-                .into())
+pub fn generate_packing_settings(
+    args: &interface::PackArguments,
+) -> GeneralResult<PackingSettings> {
+    let mut page_size = None;
+    if let Some(size) = &args.page_size {
+        match read_dimensions(size) {
+            Some((w, h)) => {
+                if w <= MAX_DIMENSIONS && h <= MAX_DIMENSIONS {
+                    page_size = Some((w, h))
+                } else {
+                    return Err(format!(
+                        "largest supported page size is {}x{}",
+                        MAX_DIMENSIONS, MAX_DIMENSIONS
+                    )
+                    .into());
+                }
             }
+            None => return Err(format!("failed to read page size from '{}'.", size).into()),
+        }
+    }
+    Ok(PackingSettings {
+        method: match args.pack_by_area {
+            true => PackingMethod::Area,
+            false => PackingMethod::Distance,
+        },
+        spacing: cmp::min(args.spacing.unwrap_or(0), MAX_SPACING),
+        rotation: args.rotate,
+        page_size,
+        arrange: None,
+    })
+}
+
+fn read_dimensions(val: &str) -> Option<(u32, u32)> {
+    if let Some((w, h)) = val.split_once('x') {
+        if let (Ok(w), Ok(h)) = (w.parse::<u32>(), h.parse::<u32>()) {
+            Some((w, h))
         } else {
-            Err(format!("failed to read dimensions from '{}'.", s).into())
+            None
         }
     } else {
-        Ok(None)
+        None
     }
 }
