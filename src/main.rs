@@ -15,11 +15,13 @@ mod sources;
 mod utils;
 
 fn main() {
+    use interface::{Cli, Commands::*};
     let start = Instant::now();
-    let cmd = interface::Cli::parse();
+    let cmd = Cli::parse();
     let quiet_mode = match cmd.command {
-        interface::Commands::Pack(ref args) => args.quiet,
-        interface::Commands::Unpack(ref args) => args.quiet,
+        Pack(ref args) => args.quiet,
+        Unpack(ref args) => args.quiet,
+        Arrange(ref args) => args.quiet,
         _ => false,
     };
 
@@ -29,10 +31,10 @@ fn main() {
     };
 
     if let Err(msg) = match cmd.command {
-        interface::Commands::Pack(args) => commands::pack(&args, &mut log),
-        interface::Commands::Unpack(args) => commands::unpack(&args, &mut log),
-        interface::Commands::Query(args) => commands::query(&args, &mut log),
-        interface::Commands::Arrange(args) => commands::arrange(&args, &mut log)
+        Pack(args) => commands::pack(&args, &mut log),
+        Unpack(args) => commands::unpack(&args, &mut log),
+        Query(args) => commands::query(&args, &mut log),
+        Arrange(args) => commands::arrange(&args, &mut log),
     } {
         exit_with_error(&mut log, msg);
     }

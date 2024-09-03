@@ -120,5 +120,8 @@ pub struct ArrangeArguments {
     pub overwrite: bool,
     /// Arrange images horizontally or vertically
     #[arg(short = 'd')]
-    pub direction: Option<ArrangeDirection>
+    pub direction: Option<ArrangeDirection>,
+    /// Quiet mode
+    #[arg(short = 'q')]
+    pub quiet: bool
 }

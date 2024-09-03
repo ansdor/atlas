@@ -4,15 +4,13 @@ atlas is a simple command-line texture atlas generator. it uses several versions
 
 installation
 ------------
-just run ```cargo build --release```
+```cargo build --release```
 
 the program was developed on the nightly version of rust, but stable should also work. 
 
-the executable will be created in the ```target/release``` directory.
-
 usage
 -----
-atlas includes 3 sub-commands: pack, unpack and query.
+atlas includes 4 sub-commands: pack, unpack, arrange and query.
 
 ## atlas pack
 recursively scans all folders/files provided as sources looking for .png files, and packs all of them into a single .png texture. an output argument of ```my-folder/foo``` will create two files: ```my-folder/foo.png``` and ```my-folder/foo.json```.
@@ -40,7 +38,7 @@ quiet mode, nothing will be printed to stdout.
 generate a texture with power-of-two sizes. this option is always less space-efficient than not using it, but there are some use cases.
 
 ```--no-dedup```<br>
-by default, if atlas finds two textures that are byte-for-byte equal in the source set, it will generate only one copy in the output file and point both file names to the same position. if this behavior is somehow undesirable, this option disables it.
+by default, if atlas finds two textures that are byte-for-byte identical in the source set, it will generate only one copy in the output file and point both file names to the same position. if this behavior is somehow undesirable, this option disables it.
 
 ```--short```<br>
 ```--area```<br>
@@ -60,15 +58,33 @@ enable overwriting.
 ```-q```<br>
 quiet mode, nothing will be printed to stdout.
 
+## atlas arrange
+this command is useful when, instead of packing images in the smallest possible rectangle, you need to arrange them in a specific layout, e.g. for an animated spritesheet. unlike ```atlas pack```, this command will sort files alphabetically and numerically by their name.
+
+usage: ```atlas arrange [options ...] <layout> <sources ...> <output>```
+
+```layout``` should be a string in the ```[w]x[h]``` format, such as ```4x4``` or ```8x2```. ```sources``` are the files or folders to be used, and ```output``` the resulting image.
+
+the available command-line options are:
+
+```-o```<br>
+enable overwriting.
+
+```-q```<br>
+quiet mode, nothing will be printed to stdout.
+
+```-d [direction]```
+the direction in which the frames should be ordered. possible values: ```horizontal```, ```vertical```. default is ```horizontal```
+
 ## atlas query
-the rectangle packing problem is [NP-complete](https://en.wikipedia.org/wiki/Rectangle_packing#Packing_different_rectangles_in_a_minimum-area_rectangle) and there is no optimal solution for the general case. the MAXRECTS paper suggests a few variations of the basic algorithm, and atlas implements some of them. the query command tests all the variations against a given set of sources and prints a report on their efficiency for this particular case. efficiency in this case is defined by ```(total area of the sources) / (total area of output)```. the smallest the output, the better. an efficiency of >100% is achievable in some special cases due to deduplication.
+the rectangle packing problem is [NP-complete](https://en.wikipedia.org/wiki/Rectangle_packing#Packing_different_rectangles_in_a_minimum-area_rectangle) and there is no optimal solution for the general case. the MAXRECTS paper suggests several variations of the basic algorithm, and atlas implements some of them. the query command tests all the variations against a given set of sources and prints a report on their efficiency for this particular case. efficiency in this case is defined by ```(total area of the sources) / (total area of output)```. the smallest the output, the better. an efficiency of >100% is achievable in some particular cases due to deduplication.
 
 usage: ```atlas query [options ...] <sources ...>```
 
 there are three parameters that can be tweaked:
 * whether or not 90-degree rotation is allowed
 * how to sort the source textures, by the largest long side or largest short side
-* how to choose a position for a texture in the atlas, by best area fit or by shortest distance from the origin
+* how to choose a position for a texture in the atlas, by smallest area fit or by shortest distance from the origin
 
 the efficiency of these options has a lot of variation for each particular set of sources. by default, atlas will use **no rotation**, **long side sort** and **shortest distance fit**. if you run a query on your sources, the program will suggest the command that produces the best results.
 
