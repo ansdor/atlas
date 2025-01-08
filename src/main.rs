@@ -35,6 +35,7 @@ fn main() {
         Unpack(args) => commands::unpack(&args, &mut log),
         Query(args) => commands::query(&args, &mut log),
         Arrange(args) => commands::arrange(&args, &mut log),
+        Lut(args) => commands::lut(&args, &mut log),
     } {
         exit_with_error(&mut log, msg);
     }

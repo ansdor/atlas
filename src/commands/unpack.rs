@@ -9,7 +9,7 @@ use std::{
 use indicatif::ProgressBar;
 use utils::info_message;
 
-use crate::{atlas, images, interface, sources, utils};
+use crate::{atlas, images, interface, outputs, sources, utils};
 
 type UnpackedAtlas = Vec<(String, Vec<sources::SourceTexture>)>;
 
@@ -18,26 +18,45 @@ pub fn unpack(
 ) -> utils::GeneralResult<()> {
     let (textures_path, textures) = gather_textures_from_source(args)?;
     let textures = check_missing_textures(&textures_path, textures, log)?;
-    let output_path = prepare_output_directory(args, log)?;
-    let overwrite_count = check_overwrites(&output_path, &textures, args.overwrite)?;
-    if overwrite_count > 0 {
-        info_message(
-            log,
-            format!("{} files will be overwritten.", overwrite_count),
-        );
-    }
     let textures = fix_name_conflicts(textures);
+    let output_path = outputs::prepare_output_directory(&args.output_directory, outputs::PathType::Directory, log)?;
+    let texture_paths = {
+        let mut t = vec![];
+        // textures is a Vec of Vecs
+        textures.iter().for_each(|x| {
+            x.1.iter().for_each(|x| {
+                t.push(output_path.join(&x.path));
+            })
+        });
+        t
+    };
+    let overwrite_count = outputs::count_overwrites(&texture_paths);
+    if overwrite_count > 0 {
+        match args.overwrite {
+            true => {
+                info_message(
+                    log,
+                    format!("{} files will be overwritten.", overwrite_count),
+                );
+            }
+            false => {
+                return Err("files already exist in output directory. use the -o flag to overwrite.".into());
+            }
+        }
+    }
     unpack_with_progress_bar((textures_path, output_path), textures, log)
 }
 
 fn gather_textures_from_source(
     args: &interface::UnpackArguments,
 ) -> utils::GeneralResult<(PathBuf, UnpackedAtlas)> {
-    let source_path = PathBuf::from(&args.source);
-    let source_path = if source_path.is_relative() {
-        std::env::current_dir()?.join(source_path)
-    } else {
-        source_path
+    let source_path = {
+        let s = PathBuf::from(&args.source);
+        if s.is_relative() {
+            std::env::current_dir()?.join(s)
+        } else {
+            s
+        }
     };
     let source_text = std::fs::read_to_string(&source_path)?;
     let textures = match atlas::read_from_description(&source_text) {
@@ -73,64 +92,6 @@ fn check_missing_textures<P: AsRef<Path>>(
         textures
     };
     Ok(textures)
-}
-
-fn prepare_output_directory(
-    args: &interface::UnpackArguments, log: &mut Option<impl Write>,
-) -> utils::GeneralResult<PathBuf> {
-    let output_path = PathBuf::from(&args.output_directory);
-    let output_path = if output_path.is_relative() {
-        std::env::current_dir()?.join(output_path)
-    } else {
-        output_path
-    };
-
-    match &output_path {
-        x if x.is_file() => {
-            return Err(format!(
-                "invalid output path: a file named '{}' already exists.",
-                output_path.display()
-            )
-            .into())
-        }
-        x if !x.exists() => {
-            info_message(log, "output directory does not exist.");
-            std::fs::create_dir_all(&output_path)?;
-            info_message(
-                log,
-                format!(
-                    "directory '{}' created successfully.",
-                    output_path.display()
-                ),
-            );
-        }
-        _ => {}
-    }
-    Ok(output_path)
-}
-
-fn check_overwrites<P: AsRef<Path>>(
-    output_path: P, textures: &UnpackedAtlas, overwrite_allowed: bool,
-) -> utils::GeneralResult<usize> {
-    let overwrite_count = textures
-        .iter()
-        .map(|x| {
-            x.1.iter()
-                .map(|x| match output_path.as_ref().join(&x.path).exists() {
-                    true => 1usize,
-                    false => 0usize,
-                })
-                .sum::<usize>()
-        })
-        .sum::<usize>();
-
-    match (overwrite_count, overwrite_allowed) {
-        (x, true) if x > 0 => Ok(x),
-        (x, false) if x > 0 => {
-            Err("files already exist in output directory. use the -o flag to overwrite.".into())
-        }
-        (_, _) => Ok(0),
-    }
 }
 
 fn fix_name_conflicts(mut textures: UnpackedAtlas) -> UnpackedAtlas {

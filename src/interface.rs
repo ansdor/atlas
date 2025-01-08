@@ -10,14 +10,16 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Generate texture atlas from list of images
+    /// Efficiently pack multiple textures into a single image
     Pack(PackArguments),
-    /// Extract textures from a packed texture atlas
+    /// Extract individual textures from a packed texture atlas
     Unpack(UnpackArguments),
-    /// Evaluate different packing settings for efficiency
+    /// Evaluate the efficiency of different packing settings
     Query(QueryArguments),
-    /// Generate tiled atlas from a list of images
-    Arrange(ArrangeArguments)
+    /// Pack multiple textures into a single, evenly tiled image
+    Arrange(ArrangeArguments),
+    /// Generate a LUT texture with an optional palette
+    Lut(LutArguments)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -124,4 +126,26 @@ pub struct ArrangeArguments {
     /// Quiet mode
     #[arg(short = 'q')]
     pub quiet: bool
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct LutArguments {
+    /// Filename for the generated LUT texture
+    #[arg(required = true)]
+    pub output: String,
+    /// Image file containing the colors to be used by the LUT
+    #[arg(short = 'i')]
+    pub image: Option<String>,
+    /// Dimensions of the LUT cube, in pixels
+    #[arg(short = 'd', default_value = "32")]
+    pub dimensions: Option<usize>,
+    /// Split the LUT into multiple rows
+    #[arg(short = 'r', default_value = "1")]
+    pub rows: Option<usize>,
+    /// Overwrite existing files
+    #[arg(short = 'o')]
+    pub overwrite: bool,
+    /// Quiet mode
+    #[arg(short = 'q')]
+    pub quiet: bool,
 }

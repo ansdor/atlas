@@ -29,6 +29,28 @@ pub struct PackingSettings {
     pub rotation: bool,
     pub page_size: Option<(u32, u32)>,
     pub arrange: Option<ArrangeSettings>,
+    pub source_treatment: Option<SourceTreatment>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum SortingMethod {
+    ShortSide,
+    LongSide,
+}
+
+#[derive(Debug, Clone)]
+pub struct SourceTreatment {
+    pub sorting: SortingMethod,
+    pub deduplicate: bool,
+}
+
+impl Default for SourceTreatment {
+    fn default() -> Self {
+        Self {
+            sorting: SortingMethod::LongSide,
+            deduplicate: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -412,9 +434,11 @@ pub fn generate_arrange_settings(
                 spacing: 0,
                 rotation: false,
                 page_size: None,
-                arrange: Some(ArrangeSettings {
-                    layout: (w, h),
+                source_treatment: Some(SourceTreatment {
+                    sorting: SortingMethod::LongSide,
+                    deduplicate: false,
                 }),
+                arrange: Some(ArrangeSettings { layout: (w, h) }),
             })
         }
     }
@@ -449,6 +473,13 @@ pub fn generate_packing_settings(
         rotation: args.rotate,
         page_size,
         arrange: None,
+        source_treatment: Some(SourceTreatment {
+            sorting: match args.short_side_sort {
+                true => SortingMethod::ShortSide,
+                false => SortingMethod::LongSide,
+            },
+            deduplicate: !args.include_duplicates,
+        }),
     })
 }
 

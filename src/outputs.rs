@@ -1,48 +1,57 @@
 use std::{
-    env, fs,
-    path::{Path, PathBuf},
+    env, fs, io::Write, path::{Path, PathBuf}
 };
 
 use crate::utils;
 
-pub fn prepare_output_directory(out_path: &str) -> utils::GeneralResult<PathBuf> {
-    //unwrap the command line argument
-    let path = PathBuf::from(out_path);
-    //transform a relative path into absolute, if necessary
-    let path = if path.is_relative() {
-        env::current_dir()?.join(path)
-    } else {
-        path
+pub enum PathType {
+    Files,
+    Directory
+}
+
+pub fn prepare_output_directory(path: &str, path_type: PathType, log: &mut Option<impl Write>) -> utils::GeneralResult<PathBuf> {
+    //create a pathbuf from the string passed to this function
+    let path = {
+        let p = PathBuf::from(path);
+        if p.is_relative() {
+            env::current_dir()?.join(p)
+        } else {
+            p
+        }
     };
     //retrieve the parent directory, where
     //the output files will be created
-    let out_dir = match path.parent() {
-        Some(d) => d,
-        None => return Err(format!("invalid output path '{}'", path.display()).into()),
+    let dir = match path_type {
+        PathType::Files => match path.parent() {
+            Some(p) => p,
+            None => return Err(format!("invalid output path '{}'", path.display()).into())
+        },
+        PathType::Directory => &path
     };
-    //if the path doesn't exist, try to create it
-    if !out_dir.exists() {
-        fs::create_dir_all(out_dir)?;
+    match dir {
+        x if x.is_file() => Err(format!("invalid output directory: a file named '{}' already exists.", dir.display()).into()),
+        x if !x.exists() => {
+            utils::info_message(log, "output directory does not exist.");
+            std::fs::create_dir_all(dir)?;
+            utils::info_message(log, format!("directory '{}' created successfully.", dir.display()));
+            Ok(fs::canonicalize(dir)?)
+        }
+        _ => Ok(fs::canonicalize(dir)?)
     }
-    let out_dir = fs::canonicalize(out_dir)?;
-    //return the correct absolute path
-    Ok(out_dir)
 }
 
-pub fn check_overwrite<P: AsRef<Path>>(
-    path: P, overwrite: bool,
-) -> utils::GeneralResult<Option<String>> {
-    let path = path.as_ref();
-    match (path.exists(), overwrite) {
-        //if the file exists and overwriting is allowed, return Ok with a message
-        (true, true) => Ok(Some(format!("overwriting file: {}", path.display()))),
-        //if the file exists and overwriting isn' allowed, return Err with a message
-        (true, false) => Err(format!(
-            "file '{}' already exists. use the -o flag to overwrite.",
-            path.display()
-        )
-        .into()),
-        //if the file does not exist, return Ok without a message
+pub fn notify_overwrite<P: AsRef<Path>>(path: P, overwrite_allowed: bool) -> utils::GeneralResult<Option<String>> {
+    let p = path.as_ref();
+    match (p.exists(), overwrite_allowed) {
+        // no overwrite needed, return silent success
         (false, _) => Ok(None),
+        // the program is allowed to overwrite
+        (_, true) => Ok(Some(format!("overwriting file: {}", p.display()))),
+        // the program is not allowed to overwrite
+        (_, false) => Err(format!("file '{}' already exists. use the -o flag to enable overwriting.", p.display()).into())
     }
+}
+
+pub fn count_overwrites<P: AsRef<Path>>(paths: &[P]) -> u32 {
+    paths.iter().map(|p| if p.as_ref().exists() { 1 } else { 0 }).sum()
 }
