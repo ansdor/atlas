@@ -71,7 +71,8 @@ where
 }
 
 pub fn source_list_from_paths<P: AsRef<Path>>(
-    sources: &[P], extensions: &[&str]) -> utils::GeneralResult<Vec<SourceTexture>> {
+    sources: &[P], extensions: &[&str],
+) -> utils::GeneralResult<Vec<SourceTexture>> {
     //if there are no sources, nothing to do
     if sources.is_empty() {
         return Err("No source provided".into());
@@ -207,7 +208,7 @@ pub fn deduplicate_textures(sources: &mut [SourceTexture]) -> utils::GeneralResu
 }
 
 pub fn validate_dimensions(
-    sources: &[SourceTexture], page_size: (u32, u32), spacing: u32
+    sources: &[SourceTexture], page_size: (u32, u32), spacing: u32,
 ) -> utils::GeneralResult<()> {
     //build a collection of images that don't fit the provided page size
     let misfits: Vec<usize> = sources

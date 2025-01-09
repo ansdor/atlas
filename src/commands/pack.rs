@@ -1,5 +1,10 @@
 use std::{
-    cmp, fs::File, io::Write, path::{Path, PathBuf}, sync::mpsc, thread
+    cmp,
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+    sync::mpsc,
+    thread,
 };
 
 use indicatif::ProgressBar;
@@ -96,7 +101,7 @@ pub fn prepare_sources<P: AsRef<Path>>(
     // if settings were not provided, use the defaults
     let settings = match settings.source_treatment.as_ref() {
         Some(v) => v,
-        None => &Default::default()
+        None => &Default::default(),
     };
     let mut info = sources::source_list_from_paths(sources, extensions)?;
 
@@ -147,7 +152,8 @@ pub fn generate_image_files<P: AsRef<Path>>(
 fn generate_output_files(
     args: &interface::PackArguments, packer: TexturePacker, log: &mut Option<impl Write>,
 ) -> utils::GeneralResult<()> {
-    let destination = outputs::prepare_output_directory(&args.output, outputs::PathType::Files, log)?;
+    let destination =
+        outputs::prepare_output_directory(&args.output, outputs::PathType::Files, log)?;
     let extension = match args.format {
         Some(interface::OutputFormat::Text) => "txt",
         _ => "json",

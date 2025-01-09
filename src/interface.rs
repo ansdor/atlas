@@ -19,13 +19,13 @@ pub enum Commands {
     /// Pack multiple textures into a single, evenly tiled image
     Arrange(ArrangeArguments),
     /// Generate a LUT texture with an optional palette
-    Lut(LutArguments)
+    Lut(LutArguments),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum ArrangeDirection {
     Horizontal,
-    Vertical
+    Vertical,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -125,7 +125,7 @@ pub struct ArrangeArguments {
     pub direction: Option<ArrangeDirection>,
     /// Quiet mode
     #[arg(short = 'q')]
-    pub quiet: bool
+    pub quiet: bool,
 }
 
 #[derive(Args, Debug, Clone)]

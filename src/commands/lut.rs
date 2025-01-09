@@ -1,4 +1,5 @@
 use std::{
+    cmp,
     collections::HashSet,
     io::Write,
     ops::RangeInclusive,
@@ -7,12 +8,17 @@ use std::{
 
 use crate::{images, interface, outputs, utils};
 
+const ROW_CONST_RATIO: usize = 16;
 const DEFAULT_LUT_SIZE: usize = 32;
 const LUT_SIZE_RANGE: RangeInclusive<usize> = 1..=256;
 
 struct LutSettings {
     dimensions: usize,
     rows: usize,
+}
+
+impl LutSettings {
+    fn size(&self) -> (usize, usize) { (cmp::min(self.dimensions, ROW_CONST_RATIO), self.rows) }
 }
 
 pub fn lut(
@@ -36,7 +42,7 @@ pub fn lut(
     let output_path = {
         let label = match PathBuf::from(&args.output).file_stem() {
             Some(stem) => stem.to_string_lossy().to_string(),
-            None => return Err(format!("unable to extract filename from '{}'", args.output).into())
+            None => return Err(format!("unable to extract filename from '{}'", args.output).into()),
         };
         let dir = outputs::prepare_output_directory(&args.output, outputs::PathType::Files, log)?;
         dir.join(format!("{}.{}", label, "png"))
@@ -45,7 +51,7 @@ pub fn lut(
         utils::info_message(log, msg);
     }
     utils::info_message(log, format!("LUT color count: {}", color_count));
-    images::generate_lut(&output_path, &pixels, settings.dimensions, settings.rows)?;
+    images::generate_lut(&output_path, &pixels, settings.dimensions, settings.size())?;
     Ok(())
 }
 
@@ -62,7 +68,7 @@ fn generate_settings(args: &interface::LutArguments) -> utils::GeneralResult<Lut
     };
     let rows = match (dimensions, args.rows) {
         (None, _) => None,
-        (Some(d), None) => Some(d.div_ceil(16)),
+        (Some(d), None) => Some(d.div_ceil(ROW_CONST_RATIO)),
         (Some(d), Some(r)) => {
             if (1..=d).contains(&r) {
                 Some(r)

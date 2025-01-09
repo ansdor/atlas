@@ -40,18 +40,19 @@ pub fn image_to_pixel_buffer<P: AsRef<Path>>(path: P) -> utils::GeneralResult<Ve
 }
 
 pub fn generate_lut<P: AsRef<Path>>(
-    destination: P, pixels: &[u32], size: usize, rows: usize,
+    destination: P, pixels: &[u32], resolution: usize, size: (usize, usize),
 ) -> utils::GeneralResult<()> {
-    let columns = (size as f64 / rows as f64).ceil() as usize;
+    let (columns, rows) = size;
     let to_canvas_coords = |x, y, z| {
-        let page_coords = ((z % columns) * size, (z / columns) * size);
+        let page_coords = ((z % columns) * resolution, (z / columns) * resolution);
         ((page_coords.0 + x) as u32, (page_coords.1 + y) as u32)
     };
-    let mut canvas = image::RgbaImage::new((columns * size) as u32, (rows * size) as u32);
-    for z in 0..size {
-        for y in 0..size {
-            for x in 0..size {
-                let color = pixels[z * size * size + y * size + x];
+    let mut canvas =
+        image::RgbaImage::new((columns * resolution) as u32, (rows * resolution) as u32);
+    for z in 0..resolution {
+        for y in 0..resolution {
+            for x in 0..resolution {
+                let color = pixels[z * resolution * resolution + y * resolution + x];
                 let coords = to_canvas_coords(x, y, z);
                 canvas.put_pixel(coords.0, coords.1, Rgba::from(color.to_be_bytes()));
             }

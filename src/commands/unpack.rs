@@ -19,7 +19,11 @@ pub fn unpack(
     let (textures_path, textures) = gather_textures_from_source(args)?;
     let textures = check_missing_textures(&textures_path, textures, log)?;
     let textures = fix_name_conflicts(textures);
-    let output_path = outputs::prepare_output_directory(&args.output_directory, outputs::PathType::Directory, log)?;
+    let output_path = outputs::prepare_output_directory(
+        &args.output_directory,
+        outputs::PathType::Directory,
+        log,
+    )?;
     let texture_paths = {
         let mut t = vec![];
         // textures is a Vec of Vecs
@@ -40,7 +44,9 @@ pub fn unpack(
                 );
             }
             false => {
-                return Err("files already exist in output directory. use the -o flag to overwrite.".into());
+                return Err(
+                    "files already exist in output directory. use the -o flag to overwrite.".into(),
+                );
             }
         }
     }
