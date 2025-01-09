@@ -98,7 +98,7 @@ pub fn unpack_page<P: AsRef<Path>>(
         if p.rotated {
             canvas = image::imageops::rotate270(&canvas);
         }
-        save_image_to_disk(&canvas, &dst.as_ref().join(&e.path))?;
+        save_image_to_disk(&canvas, dst.as_ref().join(&e.path))?;
         if let Some(progress) = progress {
             progress.send(1)?;
         }

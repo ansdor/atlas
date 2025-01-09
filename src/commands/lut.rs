@@ -32,7 +32,7 @@ pub fn lut(
         Some(i) => Some(palette_from_image(i)?),
         None => None,
     };
-    let pixels = generate_lut_pixels(settings.dimensions, &palette);
+    let (color_count, pixels) = generate_lut_pixels(settings.dimensions, &palette);
     let output_path = {
         let label = match PathBuf::from(&args.output).file_stem() {
             Some(stem) => stem.to_string_lossy().to_string(),
@@ -44,6 +44,7 @@ pub fn lut(
     if let Some(msg) = outputs::notify_overwrite(&output_path, args.overwrite)? {
         utils::info_message(log, msg);
     }
+    utils::info_message(log, format!("LUT color count: {}", color_count));
     images::generate_lut(&output_path, &pixels, settings.dimensions, settings.rows)?;
     Ok(())
 }
@@ -61,7 +62,7 @@ fn generate_settings(args: &interface::LutArguments) -> utils::GeneralResult<Lut
     };
     let rows = match (dimensions, args.rows) {
         (None, _) => None,
-        (_, None) => Some(1),
+        (Some(d), None) => Some(d.div_ceil(16)),
         (Some(d), Some(r)) => {
             if (1..=d).contains(&r) {
                 Some(r)
@@ -82,7 +83,7 @@ fn generate_settings(args: &interface::LutArguments) -> utils::GeneralResult<Lut
     }
 }
 
-fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> Vec<u32> {
+fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> (usize, Vec<u32>) {
     let get_index = |x, y, z| -> usize { z * (size * size) + y * (size) + x };
     let get_color = |x, y, z| -> u32 {
         let limit = size - 1;
@@ -91,6 +92,7 @@ fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> Vec<u32> {
         let b = (((z as f64) / (limit as f64)) * 255.0) as u32;
         (r << 24) | (g << 16) | (b << 8) | 0xff
     };
+    let mut color_set = HashSet::new();
     let mut pixels = vec![0; size * size * size];
     for z in 0..size {
         for y in 0..size {
@@ -98,17 +100,19 @@ fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> Vec<u32> {
                 let hex_color = get_color(x, y, z);
                 let rgb_color = rgb_from_hex(hex_color);
                 let index = get_index(x, y, z);
-                pixels[index] = match palette {
+                let color = match palette {
                     Some(p) => match best_color_match(rgb_color, p) {
                         Some(color) => color,
                         None => hex_color,
                     },
                     None => hex_color,
                 };
+                color_set.insert(color);
+                pixels[index] = color;
             }
         }
     }
-    pixels
+    (color_set.len(), pixels)
 }
 
 fn palette_from_image<P: AsRef<Path>>(path: P) -> utils::GeneralResult<Vec<u32>> {

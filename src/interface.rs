@@ -139,8 +139,8 @@ pub struct LutArguments {
     /// Dimensions of the LUT cube, in pixels
     #[arg(short = 'd', default_value = "32")]
     pub dimensions: Option<usize>,
-    /// Split the LUT into multiple rows
-    #[arg(short = 'r', default_value = "1")]
+    /// Manually set the number of rows in the LUT
+    #[arg(short = 'r')]
     pub rows: Option<usize>,
     /// Overwrite existing files
     #[arg(short = 'o')]
