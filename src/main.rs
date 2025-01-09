@@ -21,8 +21,9 @@ fn main() {
     let quiet_mode = match cmd.command {
         Pack(ref args) => args.quiet,
         Unpack(ref args) => args.quiet,
+        Query(_) => false,
         Arrange(ref args) => args.quiet,
-        _ => false,
+        Lut(ref args) => args.quiet,
     };
 
     let mut log = match quiet_mode {
