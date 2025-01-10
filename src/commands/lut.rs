@@ -8,17 +8,19 @@ use std::{
 
 use crate::{images, interface, outputs, utils};
 
-const ROW_CONST_RATIO: usize = 16;
-const DEFAULT_LUT_SIZE: usize = 32;
 const LUT_SIZE_RANGE: RangeInclusive<usize> = 1..=256;
 
 struct LutSettings {
     dimensions: usize,
-    rows: usize,
+    max_columns: usize,
 }
 
 impl LutSettings {
-    fn size(&self) -> (usize, usize) { (cmp::min(self.dimensions, ROW_CONST_RATIO), self.rows) }
+    fn columns(&self) -> usize { cmp::min(self.dimensions, self.max_columns) }
+
+    fn rows(&self) -> usize { self.dimensions.div_ceil(self.columns()) }
+
+    fn size(&self) -> (usize, usize) { (self.columns(), self.rows()) }
 }
 
 pub fn lut(
@@ -56,6 +58,8 @@ pub fn lut(
 }
 
 fn generate_settings(args: &interface::LutArguments) -> utils::GeneralResult<LutSettings> {
+    const DEFAULT_LUT_SIZE: usize = 32;
+    const DEFAULT_MAX_ROWS: usize = 16;
     let dimensions = match args.dimensions {
         None => Some(DEFAULT_LUT_SIZE),
         Some(n) => {
@@ -66,26 +70,23 @@ fn generate_settings(args: &interface::LutArguments) -> utils::GeneralResult<Lut
             }
         }
     };
-    let rows = match (dimensions, args.rows) {
+    let max_columns = match (dimensions, args.max_columns) {
         (None, _) => None,
-        (Some(d), None) => Some(d.div_ceil(ROW_CONST_RATIO)),
-        (Some(d), Some(r)) => {
-            if (1..=d).contains(&r) {
-                Some(r)
-            } else {
-                None
-            }
-        }
+        (Some(d), None) => Some(d.div_ceil(DEFAULT_MAX_ROWS)),
+        (Some(d), Some(c)) => Some(cmp::min(c, d)),
     };
-    match (dimensions, rows) {
+    match (dimensions, max_columns) {
         (None, _) => Err(format!(
             "LUT dimensions must be in the {}-{} range.",
             LUT_SIZE_RANGE.start(),
             LUT_SIZE_RANGE.end()
         )
         .into()),
-        (_, None) => Err("Invalid number of rows".into()),
-        (Some(dimensions), Some(rows)) => Ok(LutSettings { dimensions, rows }),
+        (_, None) => Err("Invalid max number of columns.".into()),
+        (Some(dimensions), Some(max_columns)) => Ok(LutSettings {
+            dimensions,
+            max_columns,
+        }),
     }
 }
 
