@@ -10,6 +10,19 @@ use crate::{images, interface, outputs, utils};
 
 const LUT_SIZE_RANGE: RangeInclusive<usize> = 1..=256;
 
+enum ColorSpace {
+    Rgb,
+}
+
+impl ColorSpace {
+    fn color_distance(&self, x: (f64, f64, f64), y: (f64, f64, f64)) -> f64 {
+        use ColorSpace::*;
+        match self {
+            Rgb => ((y.0 - x.0).powi(2) + (y.1 - x.1).powi(2) + (y.2 - x.2).powi(2)).sqrt(),
+        }
+    }
+}
+
 struct LutSettings {
     dimensions: usize,
     max_columns: usize,
@@ -99,6 +112,7 @@ fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> (usize, Vec<u
         let b = (((z as f64) / (limit as f64)) * 255.0) as u32;
         (r << 24) | (g << 16) | (b << 8) | 0xff
     };
+    let color_space = ColorSpace::Rgb;
     let mut color_set = HashSet::new();
     let mut pixels = vec![0; size * size * size];
     for z in 0..size {
@@ -108,7 +122,7 @@ fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> (usize, Vec<u
                 let rgb_color = rgb_from_hex(hex_color);
                 let index = get_index(x, y, z);
                 let color = match palette {
-                    Some(p) => match best_color_match(rgb_color, p) {
+                    Some(p) => match best_color_match(&color_space, rgb_color, p) {
                         Some(color) => color,
                         None => hex_color,
                     },
@@ -135,10 +149,10 @@ fn palette_from_pixel_buffer(pixels: &[u32]) -> Vec<u32> {
     colors.into_iter().collect()
 }
 
-fn best_color_match(color: (f64, f64, f64), palette: &[u32]) -> Option<u32> {
+fn best_color_match(color_space: &ColorSpace, color: (f64, f64, f64), palette: &[u32]) -> Option<u32> {
     palette.iter().copied().min_by(|x, y| {
-        let dx = color_distance(color, rgb_from_hex(*x));
-        let dy = color_distance(color, rgb_from_hex(*y));
+        let dx = color_space.color_distance(color, rgb_from_hex(*x));
+        let dy = color_space.color_distance(color, rgb_from_hex(*y));
         dx.total_cmp(&dy)
     })
 }
@@ -148,8 +162,4 @@ fn rgb_from_hex(color: u32) -> (f64, f64, f64) {
     let g = (color >> 16) & 0xff;
     let b = (color >> 8) & 0xff;
     ((r as f64) / 255.0, (g as f64) / 255.0, (b as f64) / 255.0)
-}
-
-fn color_distance(x: (f64, f64, f64), y: (f64, f64, f64)) -> f64 {
-    ((y.0 - x.0).powi(2) + (y.1 - x.1).powi(2) + (y.2 - x.2).powi(2)).sqrt()
 }
