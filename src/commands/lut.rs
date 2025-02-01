@@ -149,7 +149,9 @@ fn palette_from_pixel_buffer(pixels: &[u32]) -> Vec<u32> {
     colors.into_iter().collect()
 }
 
-fn best_color_match(color_space: &ColorSpace, color: (f64, f64, f64), palette: &[u32]) -> Option<u32> {
+fn best_color_match(
+    color_space: &ColorSpace, color: (f64, f64, f64), palette: &[u32],
+) -> Option<u32> {
     palette.iter().copied().min_by(|x, y| {
         let dx = color_space.color_distance(color, rgb_from_hex(*x));
         let dy = color_space.color_distance(color, rgb_from_hex(*y));
