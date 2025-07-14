@@ -80,7 +80,7 @@ fn describe_settings(args: &interface::PackArguments) -> String {
         true => "rotation",
         false => "no rotation",
     };
-    format!("{}, {}, {}", sorting, packing, rotation)
+    format!("{sorting}, {packing}, {rotation}")
 }
 
 fn generate_mock_packing_arguments(

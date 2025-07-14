@@ -55,7 +55,7 @@ impl AtlasFormatter for TextFormatter {
                     .extra
                     .as_ref()
                     .map(|x| (x.rotated, x.original_width, x.original_height));
-                let mut line = format!("region \"{}\" {} {} {} {}", name, x, y, w, h);
+                let mut line = format!("region \"{name}\" {x} {y} {w} {h}");
                 line += match extra {
                     Some((r, ow, oh)) => format!(" {} {} {}\n", if r { 1 } else { 0 }, ow, oh),
                     None => String::from("\n"),

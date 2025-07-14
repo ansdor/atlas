@@ -241,7 +241,7 @@ pub fn validate_dimensions(
         misfits.iter().for_each(|n| {
             let s = &sources[*n];
             let (name, w, h) = (&s.name, s.dimensions.width, s.dimensions.height);
-            err.push_str(format!("\n\t{} [{}x{}]", name, w, h).as_str());
+            err.push_str(format!("\n\t{name} [{w}x{h}]").as_str());
         });
         //sources.len() is always > 0, so it's safe to call unwrap() here
         let min = sources

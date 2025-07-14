@@ -9,13 +9,13 @@ pub type GeneralResult<T> = Result<T, GeneralError>;
 
 pub fn info_message<S: Write, T: Display>(sink: &mut Option<S>, msg: T) {
     if let Some(sink) = sink {
-        let _ = writeln!(sink, "[INFO] {}", msg);
+        let _ = writeln!(sink, "[INFO] {msg}");
     }
 }
 
 pub fn exit_with_error<S: Write, T: Display>(sink: &mut Option<S>, msg: T) -> ! {
     if let Some(sink) = sink {
-        let _ = writeln!(sink, "[ERROR] {}", msg);
+        let _ = writeln!(sink, "[ERROR] {msg}");
     }
     std::process::exit(1);
 }

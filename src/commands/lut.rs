@@ -6,22 +6,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use kiddo::{float::kdtree::KdTree, SquaredEuclidean};
+
 use crate::{images, interface, outputs, utils};
 
 const LUT_SIZE_RANGE: RangeInclusive<usize> = 1..=256;
-
-enum ColorSpace {
-    Rgb,
-}
-
-impl ColorSpace {
-    fn color_distance(&self, x: (f64, f64, f64), y: (f64, f64, f64)) -> f64 {
-        use ColorSpace::*;
-        match self {
-            Rgb => ((y.0 - x.0).powi(2) + (y.1 - x.1).powi(2) + (y.2 - x.2).powi(2)).sqrt(),
-        }
-    }
-}
 
 struct LutSettings {
     dimensions: usize,
@@ -53,7 +42,7 @@ pub fn lut(
         Some(i) => Some(palette_from_image(i)?),
         None => None,
     };
-    let (color_count, pixels) = generate_lut_pixels(settings.dimensions, &palette);
+    let (color_count, pixels) = generate_lut_pixels(settings.dimensions, palette);
     let output_path = {
         let label = match PathBuf::from(&args.output).file_stem() {
             Some(stem) => stem.to_string_lossy().to_string(),
@@ -65,7 +54,7 @@ pub fn lut(
     if let Some(msg) = outputs::notify_overwrite(&output_path, args.overwrite)? {
         utils::info_message(log, msg);
     }
-    utils::info_message(log, format!("LUT color count: {}", color_count));
+    utils::info_message(log, format!("LUT color count: {color_count}"));
     images::generate_lut(&output_path, &pixels, settings.dimensions, settings.size())?;
     Ok(())
 }
@@ -103,7 +92,7 @@ fn generate_settings(args: &interface::LutArguments) -> utils::GeneralResult<Lut
     }
 }
 
-fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> (usize, Vec<u32>) {
+fn generate_lut_pixels(size: usize, palette: Option<Vec<u32>>) -> (usize, Vec<u32>) {
     let get_index = |x, y, z| -> usize { z * (size * size) + y * (size) + x };
     let get_color = |x, y, z| -> u32 {
         let limit = size - 1;
@@ -112,20 +101,17 @@ fn generate_lut_pixels(size: usize, palette: &Option<Vec<u32>>) -> (usize, Vec<u
         let b = (((z as f64) / (limit as f64)) * 255.0) as u32;
         (r << 24) | (g << 16) | (b << 8) | 0xff
     };
-    let color_space = ColorSpace::Rgb;
     let mut color_set = HashSet::new();
     let mut pixels = vec![0; size * size * size];
+    let color_tree = palette.as_ref().map(|p| kdtree_from_palette(p));
     for z in 0..size {
         for y in 0..size {
             for x in 0..size {
                 let hex_color = get_color(x, y, z);
                 let rgb_color = rgb_from_hex(hex_color);
                 let index = get_index(x, y, z);
-                let color = match palette {
-                    Some(p) => match best_color_match(&color_space, rgb_color, p) {
-                        Some(color) => color,
-                        None => hex_color,
-                    },
+                let color = match &palette {
+                    Some(p) => find_nearest_color(rgb_color, p, color_tree.as_ref().unwrap()),
                     None => hex_color,
                 };
                 color_set.insert(color);
@@ -149,14 +135,20 @@ fn palette_from_pixel_buffer(pixels: &[u32]) -> Vec<u32> {
     colors.into_iter().collect()
 }
 
-fn best_color_match(
-    color_space: &ColorSpace, color: (f64, f64, f64), palette: &[u32],
-) -> Option<u32> {
-    palette.iter().copied().min_by(|x, y| {
-        let dx = color_space.color_distance(color, rgb_from_hex(*x));
-        let dy = color_space.color_distance(color, rgb_from_hex(*y));
-        dx.total_cmp(&dy)
-    })
+fn kdtree_from_palette(palette: &[u32]) -> KdTree<f64, usize, 3, 512, u32> {
+    KdTree::from_iter(palette.iter().enumerate().map(|(i, c)| {
+        let rgb = rgb_from_hex(*c);
+        ([rgb.0, rgb.1, rgb.2], i)
+    }))
+}
+
+fn find_nearest_color(
+    color: (f64, f64, f64), palette: &[u32], tree: &KdTree<f64, usize, 3, 512, u32>,
+) -> u32 {
+    let index = tree
+        .nearest_one::<SquaredEuclidean>(&[color.0, color.1, color.2])
+        .item;
+    palette[index]
 }
 
 fn rgb_from_hex(color: u32) -> (f64, f64, f64) {

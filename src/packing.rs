@@ -19,7 +19,7 @@ pub enum PackingMethod {
 }
 
 impl fmt::Display for PackingMethod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{:?}", self) }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{self:?}") }
 }
 
 #[derive(Debug, Clone)]
@@ -455,13 +455,12 @@ pub fn generate_packing_settings(
                     page_size = Some((w, h))
                 } else {
                     return Err(format!(
-                        "largest supported page size is {}x{}",
-                        MAX_DIMENSIONS, MAX_DIMENSIONS
+                        "largest supported page size is {MAX_DIMENSIONS}x{MAX_DIMENSIONS}"
                     )
                     .into());
                 }
             }
-            None => return Err(format!("failed to read page size from '{}'.", size).into()),
+            None => return Err(format!("failed to read page size from '{size}'.").into()),
         }
     }
     Ok(PackingSettings {

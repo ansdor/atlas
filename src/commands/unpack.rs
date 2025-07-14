@@ -38,10 +38,7 @@ pub fn unpack(
     if overwrite_count > 0 {
         match args.overwrite {
             true => {
-                info_message(
-                    log,
-                    format!("{} files will be overwritten.", overwrite_count),
-                );
+                info_message(log, format!("{overwrite_count} files will be overwritten."));
             }
             false => {
                 return Err(
@@ -88,7 +85,7 @@ fn check_missing_textures<P: AsRef<Path>>(
         msg.push_str("some images were not found and will be skipped:\n");
         missing_textures
             .iter()
-            .for_each(|x| msg.push_str(format!("\t{}\n", x).as_str()));
+            .for_each(|x| msg.push_str(format!("\t{x}\n").as_str()));
         info_message(log, msg);
         textures
             .into_iter()
