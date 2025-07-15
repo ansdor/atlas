@@ -1,9 +1,9 @@
 [package]
 name = "atlas"
-version = "0.1.1"
-description = "simple texture atlas generator"
+version = "1.0.0"
+description = "texture atlas creator & utilities"
 authors = ["ansdor <me@ansdor.com>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

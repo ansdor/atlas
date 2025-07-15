@@ -130,7 +130,7 @@ fn palette_from_image<P: AsRef<Path>>(path: P) -> utils::GeneralResult<Vec<u32>>
 fn palette_from_pixel_buffer(pixels: &[u32]) -> Vec<u32> {
     let mut colors = HashSet::new();
     pixels.iter().for_each(|p| {
-        colors.insert(*p);
+        colors.insert(*p | 0xff);
     });
     colors.into_iter().collect()
 }
