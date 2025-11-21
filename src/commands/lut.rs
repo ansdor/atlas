@@ -6,11 +6,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use kiddo::{float::kdtree::KdTree, SquaredEuclidean};
+use kiddo::{SquaredEuclidean, float::kdtree::KdTree};
 
 use crate::{images, interface, outputs, utils};
 
 const LUT_SIZE_RANGE: RangeInclusive<usize> = 1..=256;
+const KDTREE_BUCKET_SIZE: usize = 1024;
 
 struct LutSettings {
     dimensions: usize,
@@ -38,10 +39,15 @@ pub fn lut(
         }
     });
     let settings = generate_settings(args)?;
-    let palette = match source_image {
+    let mut palette = match source_image {
         Some(i) => Some(palette_from_image(i)?),
         None => None,
     };
+    if args.expand {
+        if let Some(p) = palette.take() {
+            palette.replace(expand_palette(&p)?);
+        }
+    }
     let (color_count, pixels) = generate_lut_pixels(settings.dimensions, palette);
     let output_path = {
         let label = match PathBuf::from(&args.output).file_stem() {
@@ -122,6 +128,26 @@ fn generate_lut_pixels(size: usize, palette: Option<Vec<u32>>) -> (usize, Vec<u3
     (color_set.len(), pixels)
 }
 
+fn expand_palette(palette: &[u32]) -> utils::GeneralResult<Vec<u32>> {
+    const EXPANSION_LIMIT: usize = 512;
+    if palette.len() > EXPANSION_LIMIT {
+        Err(format!(
+            "palette expansion is limited to to {} colors, length {} given",
+            EXPANSION_LIMIT,
+            palette.len()
+        )
+        .into())
+    } else {
+        let mut p = HashSet::<u32>::new();
+        palette.iter().for_each(|c0| {
+            palette.iter().for_each(|c1| {
+                p.insert(blend_colors(*c0, *c1, 0.5));
+            })
+        });
+        Ok(Vec::from_iter(p.drain()))
+    }
+}
+
 fn palette_from_image<P: AsRef<Path>>(path: P) -> utils::GeneralResult<Vec<u32>> {
     let pixels = images::image_to_pixel_buffer(path)?;
     Ok(palette_from_pixel_buffer(&pixels))
@@ -135,7 +161,7 @@ fn palette_from_pixel_buffer(pixels: &[u32]) -> Vec<u32> {
     colors.into_iter().collect()
 }
 
-fn kdtree_from_palette(palette: &[u32]) -> KdTree<f64, usize, 3, 512, u32> {
+fn kdtree_from_palette(palette: &[u32]) -> KdTree<f64, usize, 3, KDTREE_BUCKET_SIZE, u32> {
     KdTree::from_iter(palette.iter().enumerate().map(|(i, c)| {
         let rgb = rgb_from_hex(*c);
         ([rgb.0, rgb.1, rgb.2], i)
@@ -143,12 +169,31 @@ fn kdtree_from_palette(palette: &[u32]) -> KdTree<f64, usize, 3, 512, u32> {
 }
 
 fn find_nearest_color(
-    color: (f64, f64, f64), palette: &[u32], tree: &KdTree<f64, usize, 3, 512, u32>,
+    color: (f64, f64, f64), palette: &[u32], tree: &KdTree<f64, usize, 3, KDTREE_BUCKET_SIZE, u32>,
 ) -> u32 {
     let index = tree
         .nearest_one::<SquaredEuclidean>(&[color.0, color.1, color.2])
         .item;
     palette[index]
+}
+
+fn blend_colors(c0: u32, c1: u32, blend: f64) -> u32 {
+    fn lerp(a: f64, b: f64, t: f64) -> f64 { a + (b - a) * t }
+    let h0 = rgb_from_hex(c0);
+    let h1 = rgb_from_hex(c1);
+    hex_from_rgb((
+        lerp(h0.0, h1.0, blend),
+        lerp(h0.1, h1.1, blend),
+        lerp(h0.2, h1.2, blend),
+    ))
+}
+
+fn hex_from_rgb(color: (f64, f64, f64)) -> u32 {
+    let (cr, cg, cb) = color;
+    let r = (cr * 255.0) as u32;
+    let g = (cg * 255.0) as u32;
+    let b = (cb * 255.0) as u32;
+    (r << 24) | (g << 16) | (b << 8) | 0xff
 }
 
 fn rgb_from_hex(color: u32) -> (f64, f64, f64) {

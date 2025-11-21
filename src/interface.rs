@@ -142,6 +142,9 @@ pub struct LutArguments {
     /// Limit the maximum number of columns in the LUT
     #[arg(short = 'c', default_value = "16")]
     pub max_columns: Option<usize>,
+    /// Expand the provided palette by interpolating colors
+    #[arg(short = 'e')]
+    pub expand: bool,
     /// Overwrite existing files
     #[arg(short = 'o')]
     pub overwrite: bool,
